@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            family: unix
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            family: unix
+          - name: macos-x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            family: macos
+          - name: macos-aarch64
+            runner: macos-15
+            target: aarch64-apple-darwin
+            family: macos
+          - name: windows-x86_64
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            family: windows
+          - name: windows-aarch64
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            family: windows
+
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build release binary
+        run: cargo build --release --locked --target "${{ matrix.target }}"
+        shell: bash
+      - name: Package Unix release
+        if: matrix.family == 'unix'
+        shell: bash
+        run: |
+          package="tit-${GITHUB_REF_NAME}-${{ matrix.name }}"
+          mkdir -p "dist/${package}"
+          cp "target/${{ matrix.target }}/release/tit" "dist/${package}/"
+          cp README.md LICENSE img/pink-circle-dot.svg img/tit-icon.png "dist/${package}/"
+          tar -C dist -czf "dist/${package}.tar.gz" "${package}"
+          rm -rf "dist/${package}"
+      - name: Create macOS icon and package
+        if: matrix.family == 'macos'
+        shell: bash
+        run: |
+          package="tit-${GITHUB_REF_NAME}-${{ matrix.name }}"
+          iconset="dist/tit.iconset"
+          mkdir -p "dist/${package}" "${iconset}"
+          for size in 16 32 128 256 512; do
+            sips -z "${size}" "${size}" img/tit-icon.png --out "${iconset}/icon_${size}x${size}.png" >/dev/null
+            double=$((size * 2))
+            sips -z "${double}" "${double}" img/tit-icon.png --out "${iconset}/icon_${size}x${size}@2x.png" >/dev/null
+          done
+          iconutil -c icns "${iconset}" -o "dist/${package}/tit.icns"
+          cp "target/${{ matrix.target }}/release/tit" "dist/${package}/"
+          cp README.md LICENSE img/pink-circle-dot.svg img/tit-icon.png "dist/${package}/"
+          tar -C dist -czf "dist/${package}.tar.gz" "${package}"
+          rm -rf "dist/${package}" "${iconset}"
+      - name: Package Windows release
+        if: matrix.family == 'windows'
+        shell: pwsh
+        run: |
+          $package = "tit-$env:GITHUB_REF_NAME-${{ matrix.name }}"
+          New-Item -ItemType Directory -Force "dist/$package" | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/tit.exe" "dist/$package/"
+          Copy-Item README.md, LICENSE, img/pink-circle-dot.svg, img/tit-icon.png, img/tit.ico "dist/$package/"
+          Compress-Archive -Path "dist/$package" -DestinationPath "dist/$package.zip"
+          Remove-Item -Recurse -Force "dist/$package"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: release-assets
+        run: sha256sum * | sort > SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: release-assets/*
+          fail_on_unmatched_files: true

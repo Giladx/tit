@@ -47,6 +47,21 @@ The interface supports both a three-pane desktop view and a compact stacked layo
 
 ## Installation
 
+### Download a release
+
+Prebuilt packages are available from the [GitHub Releases page](https://github.com/Giladx/tit/releases/latest):
+
+| Platform | Package |
+| --- | --- |
+| Linux x86_64 | `tit-v0.1.0-linux-x86_64.tar.gz` |
+| Linux ARM64 | `tit-v0.1.0-linux-aarch64.tar.gz` |
+| macOS Intel | `tit-v0.1.0-macos-x86_64.tar.gz` |
+| macOS Apple Silicon | `tit-v0.1.0-macos-aarch64.tar.gz` |
+| Windows x86_64 | `tit-v0.1.0-windows-x86_64.zip` |
+| Windows ARM64 | `tit-v0.1.0-windows-aarch64.zip` |
+
+Every release includes `SHA256SUMS.txt`. Windows executables embed the TIT.RUN icon; Linux and macOS packages include the SVG/PNG icon assets, and macOS packages also include `tit.icns`.
+
 ### Build from source
 
 Install the current stable [Rust toolchain](https://rustup.rs/), then run:
