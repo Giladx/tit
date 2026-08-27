@@ -6,9 +6,9 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-![TIT.RUN terminal toolbox interface](img/tit.jpg)
-
 TIT.RUN brings everyday developer utilities into one lightweight, offline application. It combines a responsive [Ratatui](https://ratatui.rs/) interface with headless commands that work in shell scripts, CI jobs, and agent workflows.
+
+![TIT.RUN terminal toolbox interface](img/tit.jpg)
 
 ## Highlights
 
