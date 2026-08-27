@@ -1,10 +1,18 @@
 pub mod datetime;
+pub mod uuid_generator;
+pub mod base64_encoder;
+pub mod url_encoder;
+pub mod lorem_ipsum;
+pub mod json_formatter;
+pub mod hash_generator;
+pub mod text_case_converter;
 
 use crossterm::event::KeyEvent;
 use ratatui::{Frame, layout::Rect};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Category {
+    All,
     Converter,
     Crypto,
     Text,
@@ -16,6 +24,7 @@ pub enum Category {
 impl Category {
     pub fn name(self) -> &'static str {
         match self {
+            Self::All => "All Tools",
             Self::Converter => "Converter",
             Self::Crypto => "Crypto",
             Self::Text => "Text",
@@ -27,6 +36,7 @@ impl Category {
 
     pub fn all() -> &'static [Category] {
         &[
+            Self::All,
             Self::Converter,
             Self::Crypto,
             Self::Text,
@@ -63,6 +73,13 @@ pub trait Tool {
 pub fn all_tools() -> Vec<Box<dyn Tool>> {
     vec![
         Box::new(datetime::DateTimeConverter::new()),
+        Box::new(uuid_generator::UuidGenerator::new()),
+        Box::new(base64_encoder::Base64Encoder::new()),
+        Box::new(url_encoder::UrlEncoder::new()),
+        Box::new(lorem_ipsum::LoremIpsum::new()),
+        Box::new(json_formatter::JsonFormatter::new()),
+        Box::new(hash_generator::HashGenerator::new()),
+        Box::new(text_case_converter::TextCaseConverter::new()),
         // Add more tools here later
     ]
 }

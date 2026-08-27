@@ -59,19 +59,19 @@ impl App {
             .enumerate()
             .filter(|(_, t)| {
                 let m = t.meta();
-                m.category == cat
+                (cat == Category::All || m.category == cat)
                     && (self.search.is_empty()
                         || matcher.fuzzy_match(m.name, &self.search).is_some()
-                        || m.keywords.iter().any(|k| {
-                            matcher.fuzzy_match(k, &self.search).is_some()
-                        }))
+                        || m.keywords.iter().any(|k| matcher.fuzzy_match(k, &self.search).is_some()))
             })
             .map(|(i, _)| i)
             .collect();
 
         if self.filtered.is_empty() {
             self.tool_list_state.select(None);
-        } else {
+        } else if self.tool_list_state.selected().is_none()
+            || self.tool_list_state.selected().unwrap() >= self.filtered.len()
+        {
             self.tool_list_state.select(Some(0));
         }
     }
