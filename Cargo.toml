@@ -1,0 +1,32 @@
+[package]
+name = "tit"
+version = "0.1.0"
+edition = "2021"
+description = "Terminal UI toolbox inspired by it-tools.tech"
+license = "MIT"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+tui-textarea = "0.7"
+chrono = { version = "0.4", features = ["clock", "serde"] }
+regex = "1"
+arboard = "3"
+fuzzy-matcher = "0.3"
+unicode-width = "0.2"
+anyhow = "1"
+uuid = { version = "1.10", features = ["v4"] }
+base64 = "0.22"
+urlencoding = "2.1"
+serde_json = "1.0"
+sha2 = "0.10"
+md5 = "0.7"
+rand = "0.8"
+clap = { version = "4.4", features = ["derive"] }
+url = "2.5"
+html-escape = "0.2.13"
+ipnet = "2.9"
+serde_yaml = "0.9"
+cron = "0.12"
+bcrypt = "0.15"
+rsa = { version = "0.9", features = ["pem"] }
