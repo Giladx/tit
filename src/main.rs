@@ -1,9 +1,11 @@
 mod app;
+mod cli;
 mod theme;
 mod tools;
 mod ui;
 
 use app::App;
+use clap::Parser;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
     execute,
@@ -14,7 +16,13 @@ use ratatui::Terminal;
 use std::io;
 
 fn main() -> anyhow::Result<()> {
-    // Setup terminal
+    // Check if we are running in headless CLI mode
+    let cli_args = cli::Cli::parse();
+    if let Some(cmd) = cli_args.command {
+        return cli::handle_cli(cmd);
+    }
+
+    // Otherwise setup TUI terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;

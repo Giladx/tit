@@ -10,6 +10,9 @@ pub mod jwt_parser;
 pub mod password_generator;
 pub mod text_stats;
 
+pub mod html_entities;
+pub mod url_parser;
+
 use crossterm::event::KeyEvent;
 use ratatui::{Frame, layout::Rect};
 
@@ -86,6 +89,8 @@ pub fn all_tools() -> Vec<Box<dyn Tool>> {
         Box::new(jwt_parser::JwtParser::new()),
         Box::new(password_generator::PasswordGenerator::new()),
         Box::new(text_stats::TextStats::new()),
+        Box::new(html_entities::HtmlEntities::new()),
+        Box::new(url_parser::UrlParser::new()),
         // Add more tools here later
     ]
 }
