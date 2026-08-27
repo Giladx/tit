@@ -1,4 +1,4 @@
-# TIT.RUN
+<h1><img src="img/pink-circle-dot.svg" alt="TIT.RUN logo" width="42" height="42" align="absmiddle"> TIT.RUN</h1>
 
 ![TIT.RUN terminal toolbox interface](img/tit.jpg)
 

@@ -1,0 +1,15 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">Pink circle with centered dot</title>
+  <desc id="description">
+    A pale pink circle with a muted rose dot in its center.
+  </desc>
+  <circle cx="256" cy="256" r="240" fill="#FFE4E1" />
+  <circle cx="256" cy="256" r="48" fill="#D7837F" />
+</svg>
