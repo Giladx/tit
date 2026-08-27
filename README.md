@@ -1,5 +1,7 @@
 # TIT.RUN
 
+![TIT.RUN terminal toolbox interface](img/tit.jpg)
+
 > A fast, keyboard-first developer toolbox for the terminal—available as both an interactive TUI and a script-friendly CLI.
 
 [![CI](https://github.com/Giladx/tit/actions/workflows/ci.yml/badge.svg)](https://github.com/Giladx/tit/actions/workflows/ci.yml)
