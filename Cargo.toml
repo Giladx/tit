@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 description = "Terminal UI toolbox inspired by it-tools.tech"
 license = "MIT"
+repository = "https://github.com/Giladx/tit"
+homepage = "https://github.com/Giladx/tit"
+readme = "README.md"
 
 [dependencies]
 ratatui = "0.29"

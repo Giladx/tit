@@ -1,20 +1,24 @@
-pub mod datetime;
-pub mod uuid_generator;
 pub mod base64_encoder;
-pub mod url_encoder;
-pub mod lorem_ipsum;
-pub mod json_formatter;
+pub mod color_converter;
+pub mod cron_parser;
+pub mod datetime;
 pub mod hash_generator;
-pub mod text_case_converter;
+pub mod json_formatter;
 pub mod jwt_parser;
+pub mod lorem_ipsum;
+pub mod number_base_converter;
 pub mod password_generator;
+pub mod regex_tester;
+pub mod text_case_converter;
 pub mod text_stats;
+pub mod url_encoder;
+pub mod uuid_generator;
 
 pub mod html_entities;
 pub mod url_parser;
 
 use crossterm::event::KeyEvent;
-use ratatui::{Frame, layout::Rect};
+use ratatui::{layout::Rect, Frame};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Category {
@@ -63,9 +67,8 @@ pub struct ToolMeta {
 
 pub enum Action {
     None,
-    Quit,
     Back,
-    Copied,
+    Status(String),
 }
 
 pub trait Tool {
@@ -73,6 +76,16 @@ pub trait Tool {
     fn render(&mut self, f: &mut Frame, area: Rect, focused: bool);
     fn handle_key(&mut self, key: KeyEvent) -> Action;
     fn on_focus(&mut self) {}
+    fn help(&self) -> Vec<&'static str> {
+        vec!["Type to update", "Esc: back"]
+    }
+}
+
+pub fn copy_to_clipboard(value: String) -> Action {
+    match arboard::Clipboard::new().and_then(|mut clipboard| clipboard.set_text(value)) {
+        Ok(()) => Action::Status("Copied to clipboard".into()),
+        Err(error) => Action::Status(format!("Clipboard error: {error}")),
+    }
 }
 
 /// Registry of all tools
@@ -91,6 +104,9 @@ pub fn all_tools() -> Vec<Box<dyn Tool>> {
         Box::new(text_stats::TextStats::new()),
         Box::new(html_entities::HtmlEntities::new()),
         Box::new(url_parser::UrlParser::new()),
-        // Add more tools here later
+        Box::new(number_base_converter::NumberBaseConverter::new()),
+        Box::new(regex_tester::RegexTester::new()),
+        Box::new(color_converter::ColorConverter::new()),
+        Box::new(cron_parser::CronParser::new()),
     ]
 }

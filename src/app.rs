@@ -1,14 +1,14 @@
 use crate::theme::Theme;
 use crate::tools::{self, Action, Category, Tool};
 use crossterm::event::{KeyCode, KeyEvent};
-use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    Frame,
 };
 
 pub enum Focus {
@@ -19,8 +19,9 @@ pub enum Focus {
 pub struct App {
     pub theme: Theme,
     pub tools: Vec<Box<dyn Tool>>,
-    pub filtered: Vec<usize>,          // indices into tools
+    pub filtered: Vec<usize>, // indices into tools
     pub category_idx: usize,
+    pub category_list_state: ListState,
     pub tool_list_state: ListState,
     pub focus: Focus,
     pub search: String,
@@ -37,6 +38,7 @@ impl App {
             tools,
             filtered: vec![],
             category_idx: 0,
+            category_list_state: ListState::default(),
             tool_list_state: ListState::default(),
             focus: Focus::Sidebar,
             search: String::new(),
@@ -46,6 +48,7 @@ impl App {
         };
         app.rebuild_filter();
         app.tool_list_state.select(Some(0));
+        app.category_list_state.select(Some(0));
         app
     }
 
@@ -53,25 +56,38 @@ impl App {
         let cat = Category::all()[self.category_idx];
         let matcher = SkimMatcherV2::default();
 
-        self.filtered = self
-            .tools
-            .iter()
-            .enumerate()
-            .filter(|(_, t)| {
-                let m = t.meta();
-                (cat == Category::All || m.category == cat)
-                    && (self.search.is_empty()
-                        || matcher.fuzzy_match(m.name, &self.search).is_some()
-                        || m.keywords.iter().any(|k| matcher.fuzzy_match(k, &self.search).is_some()))
-            })
-            .map(|(i, _)| i)
-            .collect();
+        let mut matches: Vec<(usize, i64)> =
+            self.tools
+                .iter()
+                .enumerate()
+                .filter_map(|(index, t)| {
+                    let m = t.meta();
+                    if cat != Category::All && m.category != cat {
+                        return None;
+                    }
+                    let score =
+                        if self.search.is_empty() {
+                            0
+                        } else {
+                            matcher
+                                .fuzzy_match(m.name, &self.search)
+                                .into_iter()
+                                .chain(m.keywords.iter().filter_map(|keyword| {
+                                    matcher.fuzzy_match(keyword, &self.search)
+                                }))
+                                .max()?
+                        };
+                    Some((index, score))
+                })
+                .collect();
+        if !self.search.is_empty() {
+            matches.sort_by_key(|item| std::cmp::Reverse(item.1));
+        }
+        self.filtered = matches.into_iter().map(|(index, _)| index).collect();
 
         if self.filtered.is_empty() {
             self.tool_list_state.select(None);
-        } else if self.tool_list_state.selected().is_none()
-            || self.tool_list_state.selected().unwrap() >= self.filtered.len()
-        {
+        } else {
             self.tool_list_state.select(Some(0));
         }
     }
@@ -130,12 +146,14 @@ impl App {
                 KeyCode::Left | KeyCode::Char('h') => {
                     if self.category_idx > 0 {
                         self.category_idx -= 1;
+                        self.category_list_state.select(Some(self.category_idx));
                         self.rebuild_filter();
                     }
                 }
                 KeyCode::Right | KeyCode::Char('l') => {
                     if self.category_idx + 1 < Category::all().len() {
                         self.category_idx += 1;
+                        self.category_list_state.select(Some(self.category_idx));
                         self.rebuild_filter();
                     }
                 }
@@ -154,11 +172,8 @@ impl App {
                 }
                 if let Some(tool) = self.current_tool_mut() {
                     match tool.handle_key(key) {
-                        Action::Quit => self.should_quit = true,
                         Action::Back => self.focus = Focus::Sidebar,
-                        Action::Copied => {
-                            self.status_message = "Copied to clipboard!".into();
-                        }
+                        Action::Status(message) => self.status_message = message,
                         Action::None => {}
                     }
                 }
@@ -180,6 +195,17 @@ impl App {
             .constraints([Constraint::Min(5), Constraint::Length(1)])
             .split(f.area());
 
+        if main_chunks[0].width < 100 {
+            let body = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(10), Constraint::Min(12)])
+                .split(main_chunks[0]);
+            self.render_sidebar(f, body[0], true);
+            self.render_tool(f, body[1]);
+            self.render_statusbar(f, main_chunks[1]);
+            return;
+        }
+
         let body = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
@@ -189,19 +215,26 @@ impl App {
             ])
             .split(main_chunks[0]);
 
-        self.render_sidebar(f, body[0]);
+        self.render_sidebar(f, body[0], false);
         self.render_tool(f, body[1]);
         self.render_right(f, body[2]);
         self.render_statusbar(f, main_chunks[1]);
     }
 
-    fn render_sidebar(&mut self, f: &mut Frame, area: Rect) {
+    fn render_sidebar(&mut self, f: &mut Frame, area: Rect, compact: bool) {
         let theme = self.theme;
 
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Min(5)])
-            .split(area);
+        let chunks = if compact {
+            Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+                .split(area)
+        } else {
+            Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(9), Constraint::Min(5)])
+                .split(area)
+        };
 
         // Categories
         let cats: Vec<ListItem> = Category::all()
@@ -224,7 +257,11 @@ impl App {
                 .border_style(theme.border_inactive())
                 .style(Style::default().bg(theme.panel)),
         );
-        f.render_widget(cat_list, chunks[0]);
+        f.render_stateful_widget(
+            cat_list.highlight_symbol("▶ "),
+            chunks[0],
+            &mut self.category_list_state,
+        );
 
         // Tools
         let items: Vec<ListItem> = self
@@ -277,10 +314,7 @@ impl App {
         if let Some(tool) = self.current_tool_mut() {
             tool.render(f, inner, focused);
         } else {
-            f.render_widget(
-                Paragraph::new("No tool selected").style(theme.dim()),
-                inner,
-            );
+            f.render_widget(Paragraph::new("No tool selected").style(theme.dim()), inner);
         }
     }
 
@@ -292,18 +326,36 @@ impl App {
             .border_style(theme.border_inactive())
             .style(Style::default().bg(theme.panel));
 
-        let text = vec![
+        let mut text = vec![
             Line::from(""),
-            Line::from(Span::styled("Keybindings", Style::default().fg(theme.orange))),
+            Line::from(Span::styled(
+                "Keybindings",
+                Style::default().fg(theme.orange),
+            )),
             Line::from("  ↑↓ / j k    Navigate"),
             Line::from("  ←→ / h l    Category"),
             Line::from("  Enter       Open tool"),
             Line::from("  Esc         Back"),
             Line::from("  /           Search"),
-            Line::from("  c / Enter   Copy"),
-            Line::from("  Tab         Cycle format"),
             Line::from("  q           Quit"),
         ];
+        if let Some(selected) = self
+            .tool_list_state
+            .selected()
+            .and_then(|i| self.filtered.get(i))
+        {
+            let tool = &self.tools[*selected];
+            text.push(Line::from(""));
+            text.push(Line::from(Span::styled(
+                tool.meta().name,
+                Style::default().fg(theme.orange),
+            )));
+            text.push(Line::from(Span::styled(tool.meta().id, theme.dim())));
+            text.push(Line::from(tool.meta().description));
+            for help in tool.help() {
+                text.push(Line::from(format!("  {help}")));
+            }
+        }
 
         f.render_widget(Paragraph::new(text).block(block), area);
     }
@@ -313,11 +365,46 @@ impl App {
         let text = if self.searching {
             format!(" Search: {} ", self.search)
         } else {
-            format!(" {}  |  {}", self.status_message, "q quit  / search  Esc back")
+            format!(
+                " {}  |  {}",
+                self.status_message, "q quit  / search  Esc back"
+            )
         };
         f.render_widget(
             Paragraph::new(text).style(Style::default().fg(theme.text_dim).bg(theme.bg)),
             area,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::KeyModifiers;
+
+    fn key(code: KeyCode) -> KeyEvent {
+        KeyEvent::new(code, KeyModifiers::NONE)
+    }
+
+    #[test]
+    fn search_ranks_the_best_match_first() {
+        let mut app = App::new();
+        app.handle_key(key(KeyCode::Char('/')));
+        for character in "cron".chars() {
+            app.handle_key(key(KeyCode::Char(character)));
+        }
+        let first = app.filtered[0];
+        assert_eq!(app.tools[first].meta().id, "cron");
+    }
+
+    #[test]
+    fn category_navigation_updates_filter_and_visible_state() {
+        let mut app = App::new();
+        app.handle_key(key(KeyCode::Right));
+        assert_eq!(app.category_list_state.selected(), Some(1));
+        assert!(app
+            .filtered
+            .iter()
+            .all(|index| { app.tools[*index].meta().category == Category::Converter }));
     }
 }

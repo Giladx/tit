@@ -1,10 +1,14 @@
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use clap::{Parser, Subcommand};
+use sha2::{Digest, Sha256, Sha512};
 use uuid::Uuid;
-use base64::{Engine as _, engine::general_purpose::STANDARD};
-use sha2::{Sha256, Sha512, Digest};
 
 #[derive(Parser)]
-#[command(name = "tit", version, about = "Terminal UI toolbox and headless agent tools")]
+#[command(
+    name = "tit",
+    version,
+    about = "Terminal UI toolbox and headless agent tools"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
@@ -36,17 +40,11 @@ pub enum Commands {
         text: String,
     },
     /// Generate Hashes (MD5, SHA256, SHA512)
-    Hash {
-        text: String,
-    },
+    Hash { text: String },
     /// Decode JWT token
-    Jwt {
-        token: String,
-    },
+    Jwt { token: String },
     /// Text Statistics
-    Stats {
-        text: String,
-    },
+    Stats { text: String },
 }
 
 pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
@@ -75,7 +73,7 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
             if decode {
                 println!("{}", html_escape::decode_html_entities(&text));
             } else {
-                println!("{}", html_escape::encode_html_entity(&text));
+                println!("{}", html_escape::encode_text(&text));
             }
         }
         Commands::Hash { text } => {
@@ -85,7 +83,7 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
         }
         Commands::Jwt { token } => {
             let parts: Vec<&str> = token.split('.').collect();
-            if parts.len() > 0 {
+            if !parts.is_empty() {
                 if let Ok(h) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[0]) {
                     println!("Header:\n{}", String::from_utf8_lossy(&h));
                 }
@@ -104,7 +102,10 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
             let words = text.split_whitespace().count();
             let bytes = text.len();
             let lines = text.lines().count();
-            println!("Chars: {}\nWords: {}\nLines: {}\nBytes: {}", chars, words, lines, bytes);
+            println!(
+                "Chars: {}\nWords: {}\nLines: {}\nBytes: {}",
+                chars, words, lines, bytes
+            );
         }
     }
     Ok(())

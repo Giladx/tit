@@ -1,12 +1,12 @@
-use super::{Action, Category, Tool, ToolMeta};
+use super::{copy_to_clipboard, Action, Category, Tool, ToolMeta};
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::Style,
     text::Span,
     widgets::{Block, Borders, Paragraph, Row, Table, TableState},
+    Frame,
 };
 use regex::Regex;
 use std::sync::OnceLock;
@@ -60,24 +60,40 @@ impl DateFormat {
             return Some(Utc::now());
         }
         match self {
-            Self::UnixSeconds => s.parse::<i64>().ok().and_then(|ts| Utc.timestamp_opt(ts, 0).single()),
-            Self::UnixMillis => s.parse::<i64>().ok().and_then(|ts| Utc.timestamp_millis_opt(ts).single()),
-            Self::Excel => s.parse::<f64>().ok().map(|v| {
+            Self::UnixSeconds => s
+                .parse::<i64>()
+                .ok()
+                .and_then(|ts| Utc.timestamp_opt(ts, 0).single()),
+            Self::UnixMillis => s
+                .parse::<i64>()
+                .ok()
+                .and_then(|ts| Utc.timestamp_millis_opt(ts).single()),
+            Self::Excel => s.parse::<f64>().ok().and_then(|v| {
                 let ms = ((v - 25569.0) * 86_400_000.0) as i64;
-                Utc.timestamp_millis_opt(ms).single().unwrap_or_else(Utc::now)
+                Utc.timestamp_millis_opt(ms).single()
             }),
-            Self::MongoObjectId if s.len() >= 8 => {
-                u32::from_str_radix(&s[..8], 16).ok().map(|ts| {
-                    Utc.timestamp_opt(ts as i64, 0).single().unwrap_or_else(Utc::now)
-                })
-            }
+            Self::MongoObjectId if s.len() >= 8 => u32::from_str_radix(&s[..8], 16)
+                .ok()
+                .and_then(|ts| Utc.timestamp_opt(ts as i64, 0).single()),
             _ => DateTime::parse_from_rfc3339(s)
                 .map(|dt| dt.with_timezone(&Utc))
                 .ok()
-                .or_else(|| DateTime::parse_from_rfc2822(s).ok().map(|dt| dt.with_timezone(&Utc)))
+                .or_else(|| {
+                    DateTime::parse_from_rfc2822(s)
+                        .ok()
+                        .map(|dt| dt.with_timezone(&Utc))
+                })
                 .or_else(|| s.parse::<DateTime<Utc>>().ok())
-                .or_else(|| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").ok().map(|n| Utc.from_utc_datetime(&n)))
-                .or_else(|| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").ok().map(|n| Utc.from_utc_datetime(&n))),
+                .or_else(|| {
+                    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S")
+                        .ok()
+                        .map(|n| Utc.from_utc_datetime(&n))
+                })
+                .or_else(|| {
+                    chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
+                        .ok()
+                        .map(|n| Utc.from_utc_datetime(&n))
+                }),
         }
     }
 
@@ -107,13 +123,21 @@ impl DateFormat {
         static RE_ISO: OnceLock<Regex> = OnceLock::new();
 
         match self {
-            Self::UnixSeconds => RE_UNIX.get_or_init(|| Regex::new(r"^[0-9]{1,10}$").unwrap()).is_match(s),
-            Self::UnixMillis => RE_MILLIS.get_or_init(|| Regex::new(r"^[0-9]{11,13}$").unwrap()).is_match(s),
-            Self::MongoObjectId => RE_MONGO.get_or_init(|| Regex::new(r"^[0-9a-fA-F]{24}$").unwrap()).is_match(s),
-            Self::Excel => RE_EXCEL.get_or_init(|| Regex::new(r"^-?\d+(\.\d+)?$").unwrap()).is_match(s),
-            Self::Iso8601 | Self::Rfc3339 => {
-                RE_ISO.get_or_init(|| Regex::new(r"^\d{4}-\d{2}-\d{2}T").unwrap()).is_match(s)
-            }
+            Self::UnixSeconds => RE_UNIX
+                .get_or_init(|| Regex::new(r"^-?[0-9]{1,10}$").unwrap())
+                .is_match(s),
+            Self::UnixMillis => RE_MILLIS
+                .get_or_init(|| Regex::new(r"^-?[0-9]{11,13}$").unwrap())
+                .is_match(s),
+            Self::MongoObjectId => RE_MONGO
+                .get_or_init(|| Regex::new(r"^[0-9a-fA-F]{24}$").unwrap())
+                .is_match(s),
+            Self::Excel => RE_EXCEL
+                .get_or_init(|| Regex::new(r"^-?\d+(\.\d+)?$").unwrap())
+                .is_match(s),
+            Self::Iso8601 | Self::Rfc3339 => RE_ISO
+                .get_or_init(|| Regex::new(r"^\d{4}-\d{2}-\d{2}T").unwrap())
+                .is_match(s),
             _ => false,
         }
     }
@@ -127,7 +151,6 @@ pub struct DateTimeConverter {
     is_valid: bool,
     status: String,
 }
-
 impl DateTimeConverter {
     pub fn new() -> Self {
         let mut input = TextArea::default();
@@ -169,10 +192,7 @@ impl DateTimeConverter {
                 } else {
                     format!("Detected: {}", fmt.name())
                 };
-                self.results = DateFormat::ALL
-                    .iter()
-                    .map(|f| (*f, f.format(dt)))
-                    .collect();
+                self.results = DateFormat::ALL.iter().map(|f| (*f, f.format(dt))).collect();
             }
             None => {
                 self.is_valid = false;
@@ -193,7 +213,16 @@ impl Tool for DateTimeConverter {
             name: "Date-Time Converter",
             category: Category::Converter,
             description: "Convert between many date/time formats (live)",
-            keywords: &["date", "time", "timestamp", "unix", "iso", "rfc", "excel", "mongo"],
+            keywords: &[
+                "date",
+                "time",
+                "timestamp",
+                "unix",
+                "iso",
+                "rfc",
+                "excel",
+                "mongo",
+            ],
         }
     }
 
@@ -242,19 +271,16 @@ impl Tool for DateTimeConverter {
             })
             .collect();
 
-        let table = Table::new(
-            rows,
-            [Constraint::Length(22), Constraint::Min(20)],
-        )
-        .header(header)
-        .block(
-            Block::default()
-                .title(" Conversions (↑↓ select, Enter/c copy) ")
-                .borders(Borders::ALL)
-                .border_style(theme.border_inactive()),
-        )
-        .row_highlight_style(theme.selected())
-        .highlight_symbol("▶ ");
+        let table = Table::new(rows, [Constraint::Length(22), Constraint::Min(20)])
+            .header(header)
+            .block(
+                Block::default()
+                    .title(" Conversions (↑↓ select, Enter/c copy) ")
+                    .borders(Borders::ALL)
+                    .border_style(theme.border_inactive()),
+            )
+            .row_highlight_style(theme.selected())
+            .highlight_symbol("▶ ");
 
         f.render_stateful_widget(table, chunks[2], &mut self.table_state);
     }
@@ -264,11 +290,7 @@ impl Tool for DateTimeConverter {
             KeyCode::Char('c') | KeyCode::Enter => {
                 if let Some(idx) = self.table_state.selected() {
                     if let Some((_, value)) = self.results.get(idx) {
-                        if let Ok(mut clip) = arboard::Clipboard::new() {
-                            let _ = clip.set_text(value.clone());
-                            self.status = format!("Copied: {}", value);
-                            return Action::Copied;
-                        }
+                        return copy_to_clipboard(value.clone());
                     }
                 }
             }
@@ -303,5 +325,36 @@ impl Tool for DateTimeConverter {
 
     fn on_focus(&mut self) {
         self.recompute();
+    }
+
+    fn help(&self) -> Vec<&'static str> {
+        vec![
+            "Tab/Shift+Tab: input format",
+            "Up/Down: result",
+            "Enter/C: copy result",
+        ]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn unix_epoch() {
+        assert_eq!(DateFormat::UnixSeconds.parse("0").unwrap().timestamp(), 0);
+    }
+    #[test]
+    fn detects_negative_unix() {
+        assert!(DateFormat::UnixSeconds.matches("-1"));
+    }
+    #[test]
+    fn rejects_bad_mongo() {
+        assert!(DateFormat::MongoObjectId
+            .parse("zzzzzzzz0000000000000000")
+            .is_none());
+    }
+    #[test]
+    fn excel_epoch() {
+        assert_eq!(DateFormat::Excel.parse("25569").unwrap().timestamp(), 0);
     }
 }

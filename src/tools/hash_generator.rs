@@ -1,14 +1,14 @@
-use super::{Action, Category, Tool, ToolMeta};
-use crossterm::event::{KeyCode, KeyEvent};
+use super::{copy_to_clipboard, Action, Category, Tool, ToolMeta};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use md5;
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph},
+    Frame,
 };
+use sha2::{Digest, Sha256, Sha512};
 use tui_textarea::{Input, TextArea};
-use md5;
-use sha2::{Sha256, Sha512, Digest};
 
 pub struct HashGenerator<'a> {
     input: TextArea<'a>,
@@ -20,7 +20,11 @@ pub struct HashGenerator<'a> {
 impl<'a> HashGenerator<'a> {
     pub fn new() -> Self {
         let mut input = TextArea::default();
-        input.set_block(Block::default().borders(Borders::ALL).title(" Input (Type here) "));
+        input.set_block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Input (Type here) "),
+        );
         Self {
             input,
             md5_out: String::new(),
@@ -58,21 +62,36 @@ impl<'a> Tool for HashGenerator<'a> {
     fn render(&mut self, f: &mut Frame, area: Rect, focused: bool) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(40), // Input
-                Constraint::Length(3),      // MD5
-                Constraint::Length(3),      // SHA-256
-                Constraint::Length(3),      // SHA-512
-            ].as_ref())
+            .constraints(
+                [
+                    Constraint::Percentage(40), // Input
+                    Constraint::Length(3),      // MD5
+                    Constraint::Length(3),      // SHA-256
+                    Constraint::Length(3),      // SHA-512
+                ]
+                .as_ref(),
+            )
             .split(area);
 
-        let border_style = if focused { Style::default().fg(Color::Yellow) } else { Style::default() };
+        let border_style = if focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default()
+        };
 
         if focused {
-            self.input.set_block(Block::default().borders(Borders::ALL).title(" Input Text (Esc to go back) ").border_style(border_style));
-            self.input.set_cursor_line_style(Style::default().add_modifier(ratatui::style::Modifier::UNDERLINED));
+            self.input.set_block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Input Text (Esc to go back) ")
+                    .border_style(border_style),
+            );
+            self.input.set_cursor_line_style(
+                Style::default().add_modifier(ratatui::style::Modifier::UNDERLINED),
+            );
         } else {
-            self.input.set_block(Block::default().borders(Borders::ALL).title(" Input Text "));
+            self.input
+                .set_block(Block::default().borders(Borders::ALL).title(" Input Text "));
             self.input.set_cursor_line_style(Style::default());
         }
 
@@ -95,11 +114,23 @@ impl<'a> Tool for HashGenerator<'a> {
         if key.code == KeyCode::Esc {
             return Action::Back;
         }
+        if matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
+            && key.modifiers.contains(KeyModifiers::CONTROL)
+        {
+            return copy_to_clipboard(format!(
+                "MD5: {}\nSHA-256: {}\nSHA-512: {}",
+                self.md5_out, self.sha256_out, self.sha512_out
+            ));
+        }
 
         if self.input.input(Input::from(key)) {
             self.process();
         }
 
         Action::None
+    }
+
+    fn help(&self) -> Vec<&'static str> {
+        vec!["Type: generate hashes", "Ctrl+C: copy all"]
     }
 }

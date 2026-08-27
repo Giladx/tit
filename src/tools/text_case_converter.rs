@@ -1,11 +1,10 @@
-use super::{Action, Category, Tool, ToolMeta};
+use super::{copy_to_clipboard, Action, Category, Tool, ToolMeta};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style, Modifier},
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, List, ListItem, ListState},
+    style::{Color, Modifier, Style},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    Frame,
 };
 use tui_textarea::{Input, TextArea};
 
@@ -20,9 +19,20 @@ pub struct TextCaseConverter<'a> {
 impl<'a> TextCaseConverter<'a> {
     pub fn new() -> Self {
         let mut input = TextArea::default();
-        input.set_block(Block::default().borders(Borders::ALL).title(" Input Text (Press Tab to switch pane) "));
+        input.set_block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Input Text (Press Tab to switch pane) "),
+        );
 
-        let modes = vec!["Lowercase", "Uppercase", "Title Case", "Camel Case", "Snake Case", "Kebab Case"];
+        let modes = vec![
+            "Lowercase",
+            "Uppercase",
+            "Title Case",
+            "Camel Case",
+            "Snake Case",
+            "Kebab Case",
+        ];
         let mut state = ListState::default();
         state.select(Some(0));
 
@@ -43,37 +53,43 @@ impl<'a> TextCaseConverter<'a> {
         self.output = match mode {
             "Lowercase" => text.to_lowercase(),
             "Uppercase" => text.to_uppercase(),
-            "Title Case" => {
-                text.split_whitespace()
-                    .map(|word| {
+            "Title Case" => text
+                .split_whitespace()
+                .map(|word| {
+                    let mut c = word.chars();
+                    match c.next() {
+                        None => String::new(),
+                        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
+            "Camel Case" => text
+                .split_whitespace()
+                .enumerate()
+                .map(|(i, word)| {
+                    let word = word.to_lowercase();
+                    if i == 0 {
+                        word
+                    } else {
                         let mut c = word.chars();
                         match c.next() {
                             None => String::new(),
                             Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
                         }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
-            "Camel Case" => {
-                text.split_whitespace()
-                    .enumerate()
-                    .map(|(i, word)| {
-                        let word = word.to_lowercase();
-                        if i == 0 {
-                            word
-                        } else {
-                            let mut c = word.chars();
-                            match c.next() {
-                                None => String::new(),
-                                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-                            }
-                        }
-                    })
-                    .collect::<String>()
-            }
-            "Snake Case" => text.to_lowercase().split_whitespace().collect::<Vec<_>>().join("_"),
-            "Kebab Case" => text.to_lowercase().split_whitespace().collect::<Vec<_>>().join("-"),
+                    }
+                })
+                .collect::<String>(),
+            "Snake Case" => text
+                .to_lowercase()
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join("_"),
+            "Kebab Case" => text
+                .to_lowercase()
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join("-"),
             _ => text,
         };
     }
@@ -86,7 +102,15 @@ impl<'a> Tool for TextCaseConverter<'a> {
             name: "Text Case Converter",
             category: Category::Text,
             description: "Convert text to various casings.",
-            keywords: &["text", "case", "lowercase", "uppercase", "camel", "snake", "kebab"],
+            keywords: &[
+                "text",
+                "case",
+                "lowercase",
+                "uppercase",
+                "camel",
+                "snake",
+                "kebab",
+            ],
         }
     }
 
@@ -110,18 +134,33 @@ impl<'a> Tool for TextCaseConverter<'a> {
 
         let list_items: Vec<ListItem> = self.modes.iter().map(|m| ListItem::new(*m)).collect();
         let modes_list = List::new(list_items)
-            .block(Block::default().borders(Borders::ALL).title(" Modes ").border_style(
-                if focused && !self.focus_input { border_style_focus } else { Style::default() }
-            ))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Modes ")
+                    .border_style(if focused && !self.focus_input {
+                        border_style_focus
+                    } else {
+                        Style::default()
+                    }),
+            )
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
 
         f.render_stateful_widget(modes_list, left_chunks[0], &mut self.mode_list_state);
 
         if focused && self.focus_input {
-            self.input.set_block(Block::default().borders(Borders::ALL).title(" Input Text (Press Tab to select Mode) ").border_style(border_style_focus));
-            self.input.set_cursor_line_style(Style::default().add_modifier(ratatui::style::Modifier::UNDERLINED));
+            self.input.set_block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Input Text (Press Tab to select Mode) ")
+                    .border_style(border_style_focus),
+            );
+            self.input.set_cursor_line_style(
+                Style::default().add_modifier(ratatui::style::Modifier::UNDERLINED),
+            );
         } else {
-            self.input.set_block(Block::default().borders(Borders::ALL).title(" Input Text "));
+            self.input
+                .set_block(Block::default().borders(Borders::ALL).title(" Input Text "));
             self.input.set_cursor_line_style(Style::default());
         }
 
@@ -141,6 +180,11 @@ impl<'a> Tool for TextCaseConverter<'a> {
             self.focus_input = !self.focus_input;
             return Action::None;
         }
+        if matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
+            && key.modifiers.contains(KeyModifiers::CONTROL)
+        {
+            return copy_to_clipboard(self.output.clone());
+        }
 
         if self.focus_input {
             if self.input.input(Input::from(key)) {
@@ -150,9 +194,7 @@ impl<'a> Tool for TextCaseConverter<'a> {
             match key.code {
                 KeyCode::Up | KeyCode::Char('k') => {
                     let mut i = self.mode_list_state.selected().unwrap_or(0);
-                    if i > 0 {
-                        i -= 1;
-                    }
+                    i = i.saturating_sub(1);
                     self.mode_list_state.select(Some(i));
                     self.process();
                 }
@@ -169,5 +211,13 @@ impl<'a> Tool for TextCaseConverter<'a> {
         }
 
         Action::None
+    }
+
+    fn help(&self) -> Vec<&'static str> {
+        vec![
+            "Tab: input/mode",
+            "Up/Down: select case",
+            "Ctrl+C: copy output",
+        ]
     }
 }

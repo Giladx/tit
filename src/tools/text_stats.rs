@@ -1,10 +1,10 @@
 use super::{Action, Category, Tool, ToolMeta};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph},
+    Frame,
 };
 use tui_textarea::{Input, TextArea};
 
@@ -20,7 +20,11 @@ pub struct TextStats<'a> {
 impl<'a> TextStats<'a> {
     pub fn new() -> Self {
         let mut input = TextArea::default();
-        input.set_block(Block::default().borders(Borders::ALL).title(" Input Text (Type here) "));
+        input.set_block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Input Text (Type here) "),
+        );
         Self {
             input,
             chars: 0,
@@ -57,26 +61,48 @@ impl<'a> Tool for TextStats<'a> {
             name: "Text Statistics",
             category: Category::Text,
             description: "Count characters, words, lines, and bytes in text.",
-            keywords: &["text", "statistics", "count", "words", "characters", "length"],
+            keywords: &[
+                "text",
+                "statistics",
+                "count",
+                "words",
+                "characters",
+                "length",
+            ],
         }
     }
 
     fn render(&mut self, f: &mut Frame, area: Rect, focused: bool) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(70), // Input
-                Constraint::Percentage(30), // Stats
-            ].as_ref())
+            .constraints(
+                [
+                    Constraint::Percentage(70), // Input
+                    Constraint::Percentage(30), // Stats
+                ]
+                .as_ref(),
+            )
             .split(area);
 
-        let border_style = if focused { Style::default().fg(Color::Yellow) } else { Style::default() };
+        let border_style = if focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default()
+        };
 
         if focused {
-            self.input.set_block(Block::default().borders(Borders::ALL).title(" Input Text (Esc to go back) ").border_style(border_style));
-            self.input.set_cursor_line_style(Style::default().add_modifier(ratatui::style::Modifier::UNDERLINED));
+            self.input.set_block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Input Text (Esc to go back) ")
+                    .border_style(border_style),
+            );
+            self.input.set_cursor_line_style(
+                Style::default().add_modifier(ratatui::style::Modifier::UNDERLINED),
+            );
         } else {
-            self.input.set_block(Block::default().borders(Borders::ALL).title(" Input Text "));
+            self.input
+                .set_block(Block::default().borders(Borders::ALL).title(" Input Text "));
             self.input.set_cursor_line_style(Style::default());
         }
 
@@ -102,5 +128,9 @@ impl<'a> Tool for TextStats<'a> {
         }
 
         Action::None
+    }
+
+    fn help(&self) -> Vec<&'static str> {
+        vec!["Type or paste text", "Counts Unicode characters and bytes"]
     }
 }

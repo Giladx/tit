@@ -1,13 +1,12 @@
-use super::{Action, Category, Tool, ToolMeta};
+use super::{copy_to_clipboard, Action, Category, Tool, ToolMeta};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
+    Frame,
 };
-use tui_textarea::{Input, TextArea};
 
 pub struct LoremIpsum {
     paragraphs: usize,
@@ -47,7 +46,11 @@ impl Tool for LoremIpsum {
             .constraints([Constraint::Length(3), Constraint::Min(5)].as_ref())
             .split(area);
 
-        let border_style = if focused { Style::default().fg(Color::Yellow) } else { Style::default() };
+        let border_style = if focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default()
+        };
 
         let instructions = Paragraph::new(Line::from(vec![
             Span::raw("Press "),
@@ -58,13 +61,23 @@ impl Tool for LoremIpsum {
             Span::styled("Ctrl+C", Style::default().fg(Color::Yellow)),
             Span::raw(" to copy."),
         ]))
-        .block(Block::default().borders(Borders::ALL).title(" Controls ").border_style(border_style));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Controls ")
+                .border_style(border_style),
+        );
 
         f.render_widget(instructions, chunks[0]);
 
         let text_paragraph = Paragraph::new(self.text.as_str())
             .wrap(Wrap { trim: true })
-            .block(Block::default().borders(Borders::ALL).title(format!(" Text ({} paragraphs) ", self.paragraphs)).border_style(border_style));
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(format!(" Text ({} paragraphs) ", self.paragraphs))
+                    .border_style(border_style),
+            );
 
         f.render_widget(text_paragraph, chunks[1]);
     }
@@ -81,15 +94,17 @@ impl Tool for LoremIpsum {
                 self.generate();
                 Action::None
             }
-            KeyCode::Char('c') | KeyCode::Char('C') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                    let _ = clipboard.set_text(self.text.clone());
-                    return Action::Copied;
-                }
-                Action::None
+            KeyCode::Char('c') | KeyCode::Char('C')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                copy_to_clipboard(self.text.clone())
             }
             KeyCode::Esc => Action::Back,
             _ => Action::None,
         }
+    }
+
+    fn help(&self) -> Vec<&'static str> {
+        vec!["+/-: paragraph count", "Ctrl+C: copy"]
     }
 }

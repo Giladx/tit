@@ -1,12 +1,12 @@
-use super::{Action, Category, Tool, ToolMeta};
+use super::{copy_to_clipboard, Action, Category, Tool, ToolMeta};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use rand::{distributions::Alphanumeric, Rng};
+use rand::Rng;
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
+    Frame,
 };
 
 pub struct PasswordGenerator {
@@ -62,7 +62,11 @@ impl Tool for PasswordGenerator {
             .constraints([Constraint::Length(3), Constraint::Min(5)].as_ref())
             .split(area);
 
-        let border_style = if focused { Style::default().fg(Color::Yellow) } else { Style::default() };
+        let border_style = if focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default()
+        };
 
         let instructions = Paragraph::new(Line::from(vec![
             Span::raw("Press "),
@@ -75,13 +79,26 @@ impl Tool for PasswordGenerator {
             Span::styled("Ctrl+C", Style::default().fg(Color::Yellow)),
             Span::raw(" to copy all."),
         ]))
-        .block(Block::default().borders(Borders::ALL).title(" Controls ").border_style(border_style));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Controls ")
+                .border_style(border_style),
+        );
 
         f.render_widget(instructions, chunks[0]);
 
-        let lines: Vec<Line> = self.passwords.iter().map(|p| Line::from(p.as_str())).collect();
-        let text_paragraph = Paragraph::new(lines)
-            .block(Block::default().borders(Borders::ALL).title(format!(" Passwords (Length: {}) ", self.length)).border_style(border_style));
+        let lines: Vec<Line> = self
+            .passwords
+            .iter()
+            .map(|p| Line::from(p.as_str()))
+            .collect();
+        let text_paragraph = Paragraph::new(lines).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!(" Passwords (Length: {}) ", self.length))
+                .border_style(border_style),
+        );
 
         f.render_widget(text_paragraph, chunks[1]);
     }
@@ -102,15 +119,21 @@ impl Tool for PasswordGenerator {
                 self.generate();
                 Action::None
             }
-            KeyCode::Char('c') | KeyCode::Char('C') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                    let _ = clipboard.set_text(self.passwords.join("\n"));
-                    return Action::Copied;
-                }
-                Action::None
+            KeyCode::Char('c') | KeyCode::Char('C')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                copy_to_clipboard(self.passwords.join("\n"))
             }
             KeyCode::Esc => Action::Back,
             _ => Action::None,
         }
+    }
+
+    fn help(&self) -> Vec<&'static str> {
+        vec![
+            "Enter: regenerate",
+            "+/-: password length",
+            "Ctrl+C: copy all",
+        ]
     }
 }

@@ -1,11 +1,11 @@
-use super::{Action, Category, Tool, ToolMeta};
+use super::{copy_to_clipboard, Action, Category, Tool, ToolMeta};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
+    Frame,
 };
 use uuid::Uuid;
 
@@ -49,7 +49,11 @@ impl Tool for UuidGenerator {
             .constraints([Constraint::Length(3), Constraint::Min(5)].as_ref())
             .split(area);
 
-        let border_style = if focused { Style::default().fg(Color::Yellow) } else { Style::default() };
+        let border_style = if focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default()
+        };
 
         let instructions = Paragraph::new(Line::from(vec![
             Span::raw("Press "),
@@ -62,13 +66,22 @@ impl Tool for UuidGenerator {
             Span::styled("Ctrl+C", Style::default().fg(Color::Yellow)),
             Span::raw(" to copy all."),
         ]))
-        .block(Block::default().borders(Borders::ALL).title(" Controls ").border_style(border_style));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Controls ")
+                .border_style(border_style),
+        );
 
         f.render_widget(instructions, chunks[0]);
 
         let uuids_text: Vec<Line> = self.uuids.iter().map(|u| Line::from(u.as_str())).collect();
-        let uuids_paragraph = Paragraph::new(uuids_text)
-            .block(Block::default().borders(Borders::ALL).title(format!(" UUIDs ({}) ", self.count)).border_style(border_style));
+        let uuids_paragraph = Paragraph::new(uuids_text).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!(" UUIDs ({}) ", self.count))
+                .border_style(border_style),
+        );
 
         f.render_widget(uuids_paragraph, chunks[1]);
     }
@@ -89,15 +102,17 @@ impl Tool for UuidGenerator {
                 self.generate();
                 Action::None
             }
-            KeyCode::Char('c') | KeyCode::Char('C') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                    let _ = clipboard.set_text(self.uuids.join("\n"));
-                    return Action::Copied;
-                }
-                Action::None
+            KeyCode::Char('c') | KeyCode::Char('C')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                copy_to_clipboard(self.uuids.join("\n"))
             }
             KeyCode::Esc => Action::Back,
             _ => Action::None,
         }
+    }
+
+    fn help(&self) -> Vec<&'static str> {
+        vec!["Enter: regenerate", "+/-: change count", "Ctrl+C: copy all"]
     }
 }

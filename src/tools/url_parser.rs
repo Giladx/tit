@@ -1,10 +1,10 @@
-use super::{Action, Category, Tool, ToolMeta};
-use crossterm::event::{KeyCode, KeyEvent};
+use super::{copy_to_clipboard, Action, Category, Tool, ToolMeta};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
-    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph},
+    Frame,
 };
 use tui_textarea::{Input, TextArea};
 use url::Url;
@@ -23,7 +23,11 @@ pub struct UrlParser<'a> {
 impl<'a> UrlParser<'a> {
     pub fn new() -> Self {
         let mut input = TextArea::default();
-        input.set_block(Block::default().borders(Borders::ALL).title(" Input URL (Type here) "));
+        input.set_block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Input URL (Type here) "),
+        );
         Self {
             input,
             scheme: String::new(),
@@ -57,11 +61,19 @@ impl<'a> UrlParser<'a> {
         match Url::parse(&text) {
             Ok(url) => {
                 self.scheme = url.scheme().to_string();
-                if let Some(h) = url.host_str() { self.host = h.to_string(); }
-                if let Some(p) = url.port() { self.port = p.to_string(); }
+                if let Some(h) = url.host_str() {
+                    self.host = h.to_string();
+                }
+                if let Some(p) = url.port() {
+                    self.port = p.to_string();
+                }
                 self.path = url.path().to_string();
-                if let Some(q) = url.query() { self.query = q.to_string(); }
-                if let Some(f) = url.fragment() { self.fragment = f.to_string(); }
+                if let Some(q) = url.query() {
+                    self.query = q.to_string();
+                }
+                if let Some(f) = url.fragment() {
+                    self.fragment = f.to_string();
+                }
             }
             Err(e) => {
                 self.error = format!("Invalid URL: {}", e);
@@ -77,26 +89,43 @@ impl<'a> Tool for UrlParser<'a> {
             name: "URL Parser",
             category: Category::Network,
             description: "Parse a URL into its constituent parts.",
-            keywords: &["url", "parser", "scheme", "host", "path", "query", "network"],
+            keywords: &[
+                "url", "parser", "scheme", "host", "path", "query", "network",
+            ],
         }
     }
 
     fn render(&mut self, f: &mut Frame, area: Rect, focused: bool) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(4), // Input
-                Constraint::Min(10),   // Parts
-            ].as_ref())
+            .constraints(
+                [
+                    Constraint::Length(4), // Input
+                    Constraint::Min(10),   // Parts
+                ]
+                .as_ref(),
+            )
             .split(area);
 
-        let border_style = if focused { Style::default().fg(Color::Yellow) } else { Style::default() };
+        let border_style = if focused {
+            Style::default().fg(Color::Yellow)
+        } else {
+            Style::default()
+        };
 
         if focused {
-            self.input.set_block(Block::default().borders(Borders::ALL).title(" Input URL (Esc to go back) ").border_style(border_style));
-            self.input.set_cursor_line_style(Style::default().add_modifier(ratatui::style::Modifier::UNDERLINED));
+            self.input.set_block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Input URL (Esc to go back) ")
+                    .border_style(border_style),
+            );
+            self.input.set_cursor_line_style(
+                Style::default().add_modifier(ratatui::style::Modifier::UNDERLINED),
+            );
         } else {
-            self.input.set_block(Block::default().borders(Borders::ALL).title(" Input URL "));
+            self.input
+                .set_block(Block::default().borders(Borders::ALL).title(" Input URL "));
             self.input.set_cursor_line_style(Style::default());
         }
 
@@ -105,7 +134,11 @@ impl<'a> Tool for UrlParser<'a> {
         if !self.error.is_empty() {
             let error_p = Paragraph::new(self.error.as_str())
                 .style(Style::default().fg(Color::Red))
-                .block(Block::default().borders(Borders::ALL).title(" Parse Error "));
+                .block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title(" Parse Error "),
+                );
             f.render_widget(error_p, chunks[1]);
         } else {
             let parts_text = format!(
@@ -123,10 +156,23 @@ impl<'a> Tool for UrlParser<'a> {
             return Action::Back;
         }
 
+        if matches!(key.code, KeyCode::Char('c') | KeyCode::Char('C'))
+            && key.modifiers.contains(KeyModifiers::CONTROL)
+        {
+            return copy_to_clipboard(format!(
+                "Scheme: {}\nHost: {}\nPort: {}\nPath: {}\nQuery: {}\nFragment: {}",
+                self.scheme, self.host, self.port, self.path, self.query, self.fragment
+            ));
+        }
+
         if self.input.input(Input::from(key)) {
             self.process();
         }
 
         Action::None
+    }
+
+    fn help(&self) -> Vec<&'static str> {
+        vec!["Type a complete URL", "Ctrl+C: copy parsed parts"]
     }
 }
