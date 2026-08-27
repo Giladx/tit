@@ -6,6 +6,9 @@ pub mod lorem_ipsum;
 pub mod json_formatter;
 pub mod hash_generator;
 pub mod text_case_converter;
+pub mod jwt_parser;
+pub mod password_generator;
+pub mod text_stats;
 
 use crossterm::event::KeyEvent;
 use ratatui::{Frame, layout::Rect};
@@ -80,6 +83,9 @@ pub fn all_tools() -> Vec<Box<dyn Tool>> {
         Box::new(json_formatter::JsonFormatter::new()),
         Box::new(hash_generator::HashGenerator::new()),
         Box::new(text_case_converter::TextCaseConverter::new()),
+        Box::new(jwt_parser::JwtParser::new()),
+        Box::new(password_generator::PasswordGenerator::new()),
+        Box::new(text_stats::TextStats::new()),
         // Add more tools here later
     ]
 }
