@@ -1,0 +1,17 @@
+[package]
+name = "tit"
+version = "0.1.0"
+edition = "2021"
+description = "Terminal UI toolbox inspired by it-tools.tech"
+license = "MIT"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+tui-textarea = "0.7"
+chrono = { version = "0.4", features = ["clock", "serde"] }
+regex = "1"
+arboard = "3"
+fuzzy-matcher = "0.3"
+unicode-width = "0.2"
+anyhow = "1"
