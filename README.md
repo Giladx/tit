@@ -1,7 +1,5 @@
 <h1><img src="img/pink-circle-dot.svg" alt="TIT.RUN logo" width="42" height="42" align="absmiddle"> TIT.RUN</h1>
 
-![TIT.RUN terminal toolbox interface](img/tit.jpg)
-
 > A fast, keyboard-first developer toolbox for the terminal—available as both an interactive TUI and a script-friendly CLI.
 
 [![CI](https://github.com/Giladx/tit/actions/workflows/ci.yml/badge.svg)](https://github.com/Giladx/tit/actions/workflows/ci.yml)
@@ -9,6 +7,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 TIT.RUN brings everyday developer utilities into one lightweight, offline application. It combines a responsive [Ratatui](https://ratatui.rs/) interface with headless commands that work in shell scripts, CI jobs, and agent workflows.
+
+![TIT.RUN terminal toolbox interface](img/tit.jpg)
 
 ## Highlights
 
