@@ -25,9 +25,16 @@ TIT.RUN brings everyday developer utilities into one lightweight, offline applic
 | Converters | Date-Time, Base64, URL Encoding, HTML Entities, Number Base, Color |
 | Crypto | MD5, SHA-256, and SHA-512 hashes |
 | Text | Text Case Converter, Text Statistics, Lorem Ipsum |
-| Network | URL Parser |
-| Development | JSON Formatter, JWT Parser, URL Parser, Regex Tester, Cron Parser |
+| Development | JSON Formatter, JSON ↔ YAML, JWT Parser, Regex Tester, Cron Parser |
+| Network | IPv4 Subnet Calculator, URL Parser, MAC Address Generator |
 | Generators | UUID v4, Password Generator |
+
+## Latest recovery and merge
+
+- Recovered the responsive layout, fuzzy search, contextual help, clipboard reporting, tests, CI, MIT license, and project documentation after the remote history was replaced.
+- Recovered Color Converter, Cron Parser, Regex Tester, and the signed 128-bit Number Base Converter.
+- Merged vdmo's latest HTML entity compilation fixes.
+- Added vdmo's IPv4 Subnet Calculator, MAC Address Generator, and JSON ↔ YAML Converter to both the TUI and headless CLI.
 
 > [!WARNING]
 > The JWT Parser decodes token contents but does not verify signatures. Never use decoded claims alone as proof of authenticity.
@@ -95,6 +102,11 @@ tit html-entities '<main class="app">'
 tit hash "important input"
 tit jwt "header.payload.signature"
 tit stats "A short sentence."
+tit ipv4 "192.168.1.10/24"
+tit mac --count 3
+tit yaml2json 'name: tit'
+tit json2yaml '{"name":"tit"}'
+tit number-base --from hex FF
 ```
 
 Discover all commands with `tit --help` or `tit <command> --help`.

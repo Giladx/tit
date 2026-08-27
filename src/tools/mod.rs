@@ -15,6 +15,9 @@ pub mod url_encoder;
 pub mod uuid_generator;
 
 pub mod html_entities;
+pub mod ipv4_subnet;
+pub mod json_yaml_converter;
+pub mod mac_generator;
 pub mod url_parser;
 
 use crossterm::event::KeyEvent;
@@ -104,6 +107,9 @@ pub fn all_tools() -> Vec<Box<dyn Tool>> {
         Box::new(text_stats::TextStats::new()),
         Box::new(html_entities::HtmlEntities::new()),
         Box::new(url_parser::UrlParser::new()),
+        Box::new(ipv4_subnet::Ipv4Subnet::new()),
+        Box::new(mac_generator::MacGenerator::new()),
+        Box::new(json_yaml_converter::JsonYamlConverter::new()),
         Box::new(number_base_converter::NumberBaseConverter::new()),
         Box::new(regex_tester::RegexTester::new()),
         Box::new(color_converter::ColorConverter::new()),

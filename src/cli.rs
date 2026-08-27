@@ -45,6 +45,23 @@ pub enum Commands {
     Jwt { token: String },
     /// Text Statistics
     Stats { text: String },
+    /// Calculate IPv4 subnet details from CIDR notation
+    Ipv4 { cidr: String },
+    /// Generate locally administered unicast MAC addresses
+    Mac {
+        #[arg(short, long, default_value_t = 1)]
+        count: usize,
+    },
+    /// Convert YAML to pretty JSON
+    Yaml2json { text: String },
+    /// Convert JSON to YAML
+    Json2yaml { text: String },
+    /// Convert an integer from binary, octal, decimal, or hexadecimal
+    NumberBase {
+        #[arg(short, long)]
+        from: String,
+        value: String,
+    },
 }
 
 pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
@@ -105,6 +122,43 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
             println!(
                 "Chars: {}\nWords: {}\nLines: {}\nBytes: {}",
                 chars, words, lines, bytes
+            );
+        }
+        Commands::Ipv4 { cidr } => {
+            let details =
+                crate::tools::ipv4_subnet::calculate_subnet(&cidr).map_err(anyhow::Error::msg)?;
+            println!("Network: {}", details.network);
+            println!("Broadcast: {}", details.broadcast);
+            println!("Netmask: {}", details.netmask);
+            println!("Usable hosts: {}", details.usable_hosts);
+            println!("Host range: {}", details.host_range);
+        }
+        Commands::Mac { count } => {
+            let mut rng = rand::thread_rng();
+            for _ in 0..count {
+                println!("{}", crate::tools::mac_generator::generate_mac(&mut rng));
+            }
+        }
+        Commands::Yaml2json { text } => println!(
+            "{}",
+            crate::tools::json_yaml_converter::yaml_to_json(&text).map_err(anyhow::Error::msg)?
+        ),
+        Commands::Json2yaml { text } => println!(
+            "{}",
+            crate::tools::json_yaml_converter::json_to_yaml(&text).map_err(anyhow::Error::msg)?
+        ),
+        Commands::NumberBase { from, value } => {
+            let base = match from.to_ascii_lowercase().as_str() {
+                "2" | "bin" | "binary" => 2,
+                "8" | "oct" | "octal" => 8,
+                "10" | "dec" | "decimal" => 10,
+                "16" | "hex" | "hexadecimal" => 16,
+                _ => return Err(anyhow::anyhow!("Invalid base; use 2, 8, 10, or 16")),
+            };
+            println!(
+                "{}",
+                crate::tools::number_base_converter::convert_number(&value, base)
+                    .map_err(anyhow::Error::msg)?
             );
         }
     }
