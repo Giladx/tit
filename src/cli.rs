@@ -1,5 +1,6 @@
-use clap::{Parser, Subcommand};
-use std::io::{self, Read};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{generate, Shell};
+use std::io::{self, Read, Write};
 
 #[derive(Parser)]
 #[command(
@@ -10,6 +11,14 @@ use std::io::{self, Read};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
+}
+
+pub fn print_completions(shell: Shell) -> anyhow::Result<()> {
+    let mut cmd = Cli::command();
+    let mut buf = Vec::new();
+    generate(shell, &mut cmd, "tit", &mut buf);
+    io::stdout().write_all(&buf)?;
+    Ok(())
 }
 
 fn read_stdin() -> anyhow::Result<String> {
@@ -28,6 +37,12 @@ fn arg_or_stdin(text: Option<String>) -> anyhow::Result<String> {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Generate shell completion scripts
+    Completions {
+        /// Target shell
+        #[arg(value_enum)]
+        shell: Shell,
+    },
     /// Generate UUIDs
     Uuid {
         #[arg(short, long, default_value_t = 1)]
@@ -138,6 +153,9 @@ pub enum Commands {
 
 pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
     match cmd {
+        Commands::Completions { shell } => {
+            return print_completions(shell);
+        }
         Commands::Uuid { count } => {
             for _ in 0..count {
                 println!("{}", uuid::Uuid::new_v4());

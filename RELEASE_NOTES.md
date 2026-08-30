@@ -1,14 +1,18 @@
-# TIT.RUN v0.1.0
+# TIT.RUN v0.2.0
 
-The first public release of TIT.RUN delivers a keyboard-first developer toolbox as both an interactive terminal UI and a script-friendly CLI.
+The v0.2.0 release of TIT.RUN brings every TUI tool to the headless CLI, adds tests across the entire tool suite, extends core capabilities, and includes shell completion support.
 
 ## Highlights
 
-- Responsive Ratatui interface with wide and compact layouts
-- Fuzzy tool search, contextual shortcuts, and clipboard integration
-- Native packages for Linux, macOS, and Windows on x86_64 and ARM64
-- Platform icon assets, with the icon embedded in Windows executables
-- Offline conversion and parsing with no remote service dependency
+- All 20 tools now have headless CLI subcommands
+- Most text-processing commands read from stdin when no argument is given
+- Full unit-test coverage for every tool module
+- Cron parser previews the next 5 UTC run times
+- Color converter accepts HEX (3/6 digit), RGB, and HSL inputs
+- Number-base converter supports unsigned 128-bit values
+- DateTime converter supports IANA timezone formatting
+- JWT parser supports optional HMAC signature verification (HS256/HS384/HS512)
+- Shell completion scripts via `tit completions <bash|zsh|fish|powershell>`
 
 ## Included tools
 

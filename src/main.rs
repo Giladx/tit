@@ -22,6 +22,7 @@ fn main() -> anyhow::Result<()> {
         return cli::handle_cli(cmd);
     }
 
+    // Print usage when run with -h/--help already handled by clap.
     // Otherwise setup TUI terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();

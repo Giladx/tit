@@ -1,6 +1,6 @@
 [package]
 name = "tit"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Terminal UI toolbox inspired by it-tools.tech"
 license = "MIT"
@@ -28,6 +28,7 @@ hmac = "0.12"
 md5 = "0.7"
 rand = "0.8"
 clap = { version = "4.4", features = ["derive"] }
+clap_complete = "4.5"
 url = "2.5"
 html-escape = "0.2.13"
 ipnet = "2.9"
