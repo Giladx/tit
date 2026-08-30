@@ -124,6 +124,7 @@ tit urlencode "hello world"
 tit html-entities '<main class="app">'
 tit hash "important input"
 tit jwt "header.payload.signature"
+tit jwt "header.payload.signature" --secret "hmac-secret"
 
 # JSON, YAML, and text tools
 tit json '{"a":1}'
@@ -139,7 +140,10 @@ tit url-parser "https://example.com/path?q=1"
 tit regex '\d+' 'abc123'
 tit cron '*/5 9-17 * * 1-5'
 tit datetime '2024-01-01T00:00:00Z'
-tit number-base --from hex FF
+tit datetime '2024-01-01T00:00:00Z' --timezone America/New_York
+tit color '#E6A014'
+tit color 'rgb(230, 160, 20)'
+tit number-base --from hex FFFF
 
 # Pipe input for script-friendly use
 printf 'hello world' | tit base64
@@ -175,9 +179,8 @@ GitHub Actions runs the same formatting, lint, and test gates for pushes and pul
 
 ## Current limitations
 
-- Cron parsing validates and explains standard five-field expressions but does not calculate future run times.
-- Number-base conversion is limited to signed 128-bit integers.
-- Color conversion currently accepts six-digit HEX input.
+- JWT signature verification supports HMAC (HS256/HS384/HS512) only; asymmetric algorithms are not verified.
+- Number-base conversion supports unsigned values up to 128 bits; the signed range is limited to positive `i128::MAX` for negatives.
 - Regex behavior follows Rust's `regex` crate and does not support look-around or backreferences.
 - Clipboard availability depends on the host display environment.
 

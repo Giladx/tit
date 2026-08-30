@@ -59,8 +59,12 @@ pub enum Commands {
         /// Value to hash. Omit to read from stdin.
         text: Option<String>,
     },
-    /// Decode JWT token
-    Jwt { token: Option<String> },
+    /// Decode JWT token (optionally verify HMAC signature)
+    Jwt {
+        token: Option<String>,
+        #[arg(short, long)]
+        secret: Option<String>,
+    },
     /// Text Statistics
     Stats {
         /// Value to analyze. Omit to read from stdin.
@@ -86,7 +90,12 @@ pub enum Commands {
     /// Parse a URL into its constituent parts
     UrlParser { url: String },
     /// Convert between date/time formats
-    Datetime { value: Option<String> },
+    Datetime {
+        value: Option<String>,
+        /// IANA timezone name, e.g. America/New_York
+        #[arg(short, long)]
+        timezone: Option<String>,
+    },
     /// Generate Lorem Ipsum placeholder text
     Lorem {
         #[arg(short, long, default_value_t = 3)]
@@ -169,7 +178,7 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
             println!("SHA256: {sha256_out}");
             println!("SHA512: {sha512_out}");
         }
-        Commands::Jwt { token } => {
+        Commands::Jwt { token, secret } => {
             let token = arg_or_stdin(token)?;
             let (header, payload, signature) = crate::tools::jwt_parser::decode_jwt(&token);
             if !header.is_empty() {
@@ -180,6 +189,13 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
             }
             if !signature.is_empty() {
                 println!("Signature:\n{signature}");
+            }
+            if let Some(secret) = secret {
+                match crate::tools::jwt_parser::verify_signature(&token, &secret) {
+                    Ok(true) => println!("Signature: valid"),
+                    Ok(false) => println!("Signature: invalid"),
+                    Err(e) => println!("Signature verification error: {e}"),
+                }
             }
         }
         Commands::Stats { text } => {
@@ -222,10 +238,10 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
             println!("Query:    {}", parts.query);
             println!("Fragment: {}", parts.fragment);
         }
-        Commands::Datetime { value } => {
+        Commands::Datetime { value, timezone } => {
             let value = arg_or_stdin(value)?;
-            let conversions =
-                crate::tools::datetime::convert_datetime(&value).map_err(anyhow::Error::msg)?;
+            let conversions = crate::tools::datetime::convert_datetime(&value, timezone.as_deref())
+                .map_err(anyhow::Error::msg)?;
             for (name, val) in conversions {
                 println!("{name:22} {val}");
             }

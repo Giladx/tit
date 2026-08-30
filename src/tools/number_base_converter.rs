@@ -17,12 +17,17 @@ pub fn convert_number(value: &str, base: u32) -> Result<String, String> {
     if cleaned.is_empty() {
         return Ok(String::new());
     }
-    let number = i128::from_str_radix(cleaned.trim_start_matches('-'), base)
+    let negative = cleaned.starts_with('-');
+    let digits = cleaned.trim_start_matches('-');
+    let number = u128::from_str_radix(digits, base)
         .map_err(|e| format!("Invalid base-{base} number: {e}"))?;
-    let number = if cleaned.starts_with('-') {
-        -number
+    let number = if negative {
+        if number > i128::MAX as u128 {
+            return Err("Number too large for signed 128-bit range".into());
+        }
+        -(number as i128)
     } else {
-        number
+        number as i128
     };
     Ok(format!(
         "Binary: {number:b}\nOctal: {number:o}\nDecimal: {number}\nHex: {number:X}"
@@ -116,5 +121,14 @@ mod tests {
     #[test]
     fn negatives() {
         assert!(convert_number("-10", 10).unwrap().contains("Decimal: -10"));
+    }
+    #[test]
+    fn large_unsigned() {
+        let out = convert_number("ffffffffffffffffffffffffffffffff", 16).unwrap();
+        assert!(out.contains("Decimal: -1"));
+    }
+    #[test]
+    fn rejects_too_large_negative() {
+        assert!(convert_number("-ffffffffffffffffffffffffffffffff", 16).is_err());
     }
 }

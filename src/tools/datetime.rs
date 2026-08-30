@@ -1,5 +1,6 @@
 use super::{copy_to_clipboard, Action, Category, Tool, ToolMeta};
-use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
+use chrono::{DateTime, Local, SecondsFormat, TimeZone, Utc};
+use chrono_tz::Tz;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -55,6 +56,25 @@ impl DateFormat {
         }
     }
 
+    fn format_with_tz(self, dt: DateTime<Utc>, tz: Tz) -> String {
+        let local = dt.with_timezone(&tz);
+        match self {
+            Self::JsLocale => local.to_rfc2822(),
+            Self::Iso8601 => dt.to_rfc3339_opts(SecondsFormat::Millis, true),
+            Self::Iso9075 => local.format("%Y-%m-%d %H:%M:%S").to_string(),
+            Self::Rfc3339 => dt.to_rfc3339(),
+            Self::Rfc7231 => local.format("%a, %d %b %Y %H:%M:%S %Z").to_string(),
+            Self::UnixSeconds => dt.timestamp().to_string(),
+            Self::UnixMillis => dt.timestamp_millis().to_string(),
+            Self::UtcString => dt.format("%a, %d %b %Y %H:%M:%S GMT").to_string(),
+            Self::MongoObjectId => format!("{:08x}0000000000000000", dt.timestamp() as u32),
+            Self::Excel => {
+                let v = (dt.timestamp_millis() as f64 / 86_400_000.0) + 25569.0;
+                format!("{:.5}", v)
+            }
+        }
+    }
+
     fn parse(self, s: &str) -> Option<DateTime<Utc>> {
         if s.is_empty() {
             return Some(Utc::now());
@@ -97,24 +117,6 @@ impl DateFormat {
         }
     }
 
-    fn format(self, dt: DateTime<Utc>) -> String {
-        match self {
-            Self::JsLocale => dt.to_rfc2822(),
-            Self::Iso8601 => dt.to_rfc3339_opts(SecondsFormat::Millis, true),
-            Self::Iso9075 => dt.format("%Y-%m-%d %H:%M:%S").to_string(),
-            Self::Rfc3339 => dt.to_rfc3339(),
-            Self::Rfc7231 => dt.format("%a, %d %b %Y %H:%M:%S GMT").to_string(),
-            Self::UnixSeconds => dt.timestamp().to_string(),
-            Self::UnixMillis => dt.timestamp_millis().to_string(),
-            Self::UtcString => dt.format("%a, %d %b %Y %H:%M:%S GMT").to_string(),
-            Self::MongoObjectId => format!("{:08x}0000000000000000", dt.timestamp() as u32),
-            Self::Excel => {
-                let v = (dt.timestamp_millis() as f64 / 86_400_000.0) + 25569.0;
-                format!("{:.5}", v)
-            }
-        }
-    }
-
     fn matches(self, s: &str) -> bool {
         static RE_UNIX: OnceLock<Regex> = OnceLock::new();
         static RE_MILLIS: OnceLock<Regex> = OnceLock::new();
@@ -151,8 +153,16 @@ pub struct DateTimeConverter {
     is_valid: bool,
     status: String,
 }
-pub fn convert_datetime(value: &str) -> Result<Vec<(&'static str, String)>, String> {
+pub fn convert_datetime(
+    value: &str,
+    tz_name: Option<&str>,
+) -> Result<Vec<(&'static str, String)>, String> {
     let text = value.trim();
+
+    let tz: Tz = tz_name
+        .unwrap_or("UTC")
+        .parse()
+        .map_err(|e| format!("Invalid timezone: {e}"))?;
 
     // Auto-detect input format if non-empty
     let mut selected_format = DateFormat::Iso8601;
@@ -169,13 +179,18 @@ pub fn convert_datetime(value: &str) -> Result<Vec<(&'static str, String)>, Stri
     match selected_format.parse(text) {
         Some(dt) => Ok(DateFormat::ALL
             .iter()
-            .map(|f| (f.name(), f.format(dt)))
+            .map(|f| (f.name(), f.format_with_tz(dt, tz)))
             .collect()),
         None => Err(format!(
             "Invalid date for format: {}",
             selected_format.name()
         )),
     }
+}
+
+fn current_offset_label() -> String {
+    let local_offset = Local::now().format("%:z").to_string();
+    format!("Local ({local_offset})")
 }
 
 impl DateTimeConverter {
@@ -219,7 +234,11 @@ impl DateTimeConverter {
                 } else {
                     format!("Detected: {}", fmt.name())
                 };
-                self.results = DateFormat::ALL.iter().map(|f| (*f, f.format(dt))).collect();
+                let tz = current_offset_label().parse::<Tz>().unwrap_or(Tz::UTC);
+                self.results = DateFormat::ALL
+                    .iter()
+                    .map(|f| (*f, f.format_with_tz(dt, tz)))
+                    .collect();
             }
             None => {
                 self.is_valid = false;
@@ -239,7 +258,7 @@ impl Tool for DateTimeConverter {
             id: "datetime",
             name: "Date-Time Converter",
             category: Category::Converter,
-            description: "Convert between many date/time formats (live)",
+            description: "Convert between date/time formats with optional timezone.",
             keywords: &[
                 "date",
                 "time",
@@ -359,6 +378,7 @@ impl Tool for DateTimeConverter {
             "Tab/Shift+Tab: input format",
             "Up/Down: result",
             "Enter/C: copy result",
+            "CLI: --timezone America/New_York",
         ]
     }
 }
