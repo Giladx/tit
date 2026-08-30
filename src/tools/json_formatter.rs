@@ -20,7 +20,7 @@ enum Mode {
     Format,
     Minify,
 }
-fn format_json(text: &str, pretty: bool) -> Result<String, String> {
+pub fn format_json(text: &str, pretty: bool) -> Result<String, String> {
     let value: Value = serde_json::from_str(text).map_err(|e| format!("Invalid JSON: {e}"))?;
     if pretty {
         serde_json::to_string_pretty(&value)

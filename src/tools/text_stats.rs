@@ -17,6 +17,15 @@ pub struct TextStats<'a> {
     bytes: usize,
 }
 
+pub fn analyze(text: &str) -> (usize, usize, usize, usize, usize) {
+    let chars = text.chars().count();
+    let chars_no_spaces = text.chars().filter(|c| !c.is_whitespace()).count();
+    let words = text.split_whitespace().count();
+    let lines = text.lines().count();
+    let bytes = text.len();
+    (chars, chars_no_spaces, words, lines, bytes)
+}
+
 impl<'a> TextStats<'a> {
     pub fn new() -> Self {
         let mut input = TextArea::default();
@@ -37,20 +46,13 @@ impl<'a> TextStats<'a> {
 
     fn process(&mut self) {
         let text = self.input.lines().join("\n");
-        if text.is_empty() {
-            self.chars = 0;
-            self.chars_no_spaces = 0;
-            self.words = 0;
-            self.lines = 0;
-            self.bytes = 0;
-            return;
-        }
-
-        self.chars = text.chars().count();
-        self.chars_no_spaces = text.chars().filter(|c| !c.is_whitespace()).count();
-        self.words = text.split_whitespace().count();
-        self.lines = self.input.lines().len();
-        self.bytes = text.len(); // bytes
+        (
+            self.chars,
+            self.chars_no_spaces,
+            self.words,
+            self.lines,
+            self.bytes,
+        ) = analyze(&text);
     }
 }
 

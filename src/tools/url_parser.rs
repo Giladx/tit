@@ -52,34 +52,48 @@ impl<'a> UrlParser<'a> {
 
     fn process(&mut self) {
         let text = self.input.lines().join("").trim().to_string();
-        self.clear_fields();
-
-        if text.is_empty() {
-            return;
-        }
-
-        match Url::parse(&text) {
-            Ok(url) => {
-                self.scheme = url.scheme().to_string();
-                if let Some(h) = url.host_str() {
-                    self.host = h.to_string();
-                }
-                if let Some(p) = url.port() {
-                    self.port = p.to_string();
-                }
-                self.path = url.path().to_string();
-                if let Some(q) = url.query() {
-                    self.query = q.to_string();
-                }
-                if let Some(f) = url.fragment() {
-                    self.fragment = f.to_string();
-                }
+        match parse_url(&text) {
+            Ok(parts) => {
+                self.scheme = parts.scheme;
+                self.host = parts.host;
+                self.port = parts.port;
+                self.path = parts.path;
+                self.query = parts.query;
+                self.fragment = parts.fragment;
+                self.error.clear();
             }
             Err(e) => {
-                self.error = format!("Invalid URL: {}", e);
+                self.clear_fields();
+                self.error = e;
             }
         }
     }
+}
+
+pub struct UrlParts {
+    pub scheme: String,
+    pub host: String,
+    pub port: String,
+    pub path: String,
+    pub query: String,
+    pub fragment: String,
+}
+
+pub fn parse_url(text: &str) -> Result<UrlParts, String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err("URL is empty".into());
+    }
+
+    let url = Url::parse(text).map_err(|e| format!("Invalid URL: {e}"))?;
+    Ok(UrlParts {
+        scheme: url.scheme().to_string(),
+        host: url.host_str().unwrap_or("").to_string(),
+        port: url.port().map(|p| p.to_string()).unwrap_or_default(),
+        path: url.path().to_string(),
+        query: url.query().unwrap_or("").to_string(),
+        fragment: url.fragment().unwrap_or("").to_string(),
+    })
 }
 
 impl<'a> Tool for UrlParser<'a> {

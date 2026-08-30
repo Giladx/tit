@@ -19,6 +19,59 @@ pub struct JwtParser<'a> {
     signature_out: String,
 }
 
+fn decode_part(part: &str) -> String {
+    if part.is_empty() {
+        return String::new();
+    }
+
+    let decode_result = URL_SAFE_NO_PAD.decode(part).or_else(|_| {
+        let mut p = part.to_string();
+        while !p.len().is_multiple_of(4) {
+            p.push('=');
+        }
+        URL_SAFE.decode(&p)
+    });
+
+    match decode_result {
+        Ok(b) => {
+            if let Ok(s) = String::from_utf8(b) {
+                if let Ok(v) = serde_json::from_str::<Value>(&s) {
+                    return serde_json::to_string_pretty(&v).unwrap_or(s);
+                }
+                return s;
+            }
+            "Invalid UTF-8".to_string()
+        }
+        Err(_) => "Invalid Base64Url sequence".to_string(),
+    }
+}
+
+pub fn decode_jwt(token: &str) -> (String, String, String) {
+    let text = token.replace(['\n', '\r', ' '], "");
+    if text.is_empty() {
+        return (String::new(), String::new(), String::new());
+    }
+
+    let parts: Vec<&str> = text.split('.').collect();
+
+    let header_out = if !parts.is_empty() {
+        decode_part(parts[0])
+    } else {
+        String::new()
+    };
+    let payload_out = if parts.len() > 1 {
+        decode_part(parts[1])
+    } else {
+        String::new()
+    };
+    let signature_out = if parts.len() > 2 {
+        parts[2].to_string()
+    } else {
+        String::new()
+    };
+    (header_out, payload_out, signature_out)
+}
+
 impl<'a> JwtParser<'a> {
     pub fn new() -> Self {
         let mut input = TextArea::default();
@@ -35,59 +88,9 @@ impl<'a> JwtParser<'a> {
         }
     }
 
-    fn decode_part(part: &str) -> String {
-        if part.is_empty() {
-            return String::new();
-        }
-
-        let decode_result = URL_SAFE_NO_PAD.decode(part).or_else(|_| {
-            let mut p = part.to_string();
-            while !p.len().is_multiple_of(4) {
-                p.push('=');
-            }
-            URL_SAFE.decode(&p)
-        });
-
-        match decode_result {
-            Ok(b) => {
-                if let Ok(s) = String::from_utf8(b) {
-                    if let Ok(v) = serde_json::from_str::<Value>(&s) {
-                        return serde_json::to_string_pretty(&v).unwrap_or(s);
-                    }
-                    return s;
-                }
-                "Invalid UTF-8".to_string()
-            }
-            Err(_) => "Invalid Base64Url sequence".to_string(),
-        }
-    }
-
     fn process(&mut self) {
-        let text = self.input.lines().join("").replace(['\n', '\r', ' '], "");
-        if text.is_empty() {
-            self.header_out.clear();
-            self.payload_out.clear();
-            self.signature_out.clear();
-            return;
-        }
-
-        let parts: Vec<&str> = text.split('.').collect();
-
-        self.header_out = if !parts.is_empty() {
-            Self::decode_part(parts[0])
-        } else {
-            String::new()
-        };
-        self.payload_out = if parts.len() > 1 {
-            Self::decode_part(parts[1])
-        } else {
-            String::new()
-        };
-        self.signature_out = if parts.len() > 2 {
-            parts[2].to_string()
-        } else {
-            String::new()
-        };
+        (self.header_out, self.payload_out, self.signature_out) =
+            decode_jwt(&self.input.lines().join(""));
     }
 }
 
@@ -197,11 +200,11 @@ mod tests {
 
     #[test]
     fn decodes_json_payload() {
-        assert!(JwtParser::decode_part("eyJzdWIiOiIxMjMifQ").contains("\"sub\": \"123\""));
+        assert!(decode_part("eyJzdWIiOiIxMjMifQ").contains("\"sub\": \"123\""));
     }
 
     #[test]
     fn rejects_invalid_base64url() {
-        assert_eq!(JwtParser::decode_part("!!!"), "Invalid Base64Url sequence");
+        assert_eq!(decode_part("!!!"), "Invalid Base64Url sequence");
     }
 }

@@ -13,6 +13,12 @@ pub struct LoremIpsum {
     text: String,
 }
 
+const LOREM: &str = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+
+pub fn generate(paragraphs: usize) -> String {
+    vec![LOREM; paragraphs.clamp(1, 50)].join("\n\n")
+}
+
 impl LoremIpsum {
     pub fn new() -> Self {
         let mut t = Self {
@@ -24,8 +30,7 @@ impl LoremIpsum {
     }
 
     fn generate(&mut self) {
-        let lipsum = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-        self.text = vec![lipsum; self.paragraphs].join("\n\n");
+        self.text = generate(self.paragraphs);
     }
 }
 

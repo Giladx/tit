@@ -21,10 +21,10 @@ enum Mode {
     Decode,
 }
 
-fn encode_base64(text: &str) -> String {
+pub fn encode_base64(text: &str) -> String {
     STANDARD.encode(text)
 }
-fn decode_base64(text: &str) -> Result<String, String> {
+pub fn decode_base64(text: &str) -> Result<String, String> {
     let compact = text.replace(&['\n', '\r', ' '][..], "");
     let bytes = STANDARD
         .decode(compact)

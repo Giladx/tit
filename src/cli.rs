@@ -1,7 +1,5 @@
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use clap::{Parser, Subcommand};
-use sha2::{Digest, Sha256, Sha512};
-use uuid::Uuid;
+use std::io::{self, Read};
 
 #[derive(Parser)]
 #[command(
@@ -12,6 +10,20 @@ use uuid::Uuid;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
+}
+
+fn read_stdin() -> anyhow::Result<String> {
+    let mut buf = String::new();
+    io::stdin().read_to_string(&mut buf)?;
+    Ok(buf)
+}
+
+/// Read value from argument if present, otherwise from stdin.
+fn arg_or_stdin(text: Option<String>) -> anyhow::Result<String> {
+    match text {
+        Some(v) => Ok(v),
+        None => read_stdin(),
+    }
 }
 
 #[derive(Subcommand)]
@@ -25,26 +37,70 @@ pub enum Commands {
     Base64 {
         #[arg(short, long)]
         decode: bool,
-        text: String,
+        /// Value to encode/decode. Omit to read from stdin.
+        text: Option<String>,
     },
     /// URL Encode/Decode
     Urlencode {
         #[arg(short, long)]
         decode: bool,
-        text: String,
+        /// Value to encode/decode. Omit to read from stdin.
+        text: Option<String>,
     },
     /// HTML Entities Encode/Decode
     HtmlEntities {
         #[arg(short, long)]
         decode: bool,
-        text: String,
+        /// Value to encode/decode. Omit to read from stdin.
+        text: Option<String>,
     },
     /// Generate Hashes (MD5, SHA256, SHA512)
-    Hash { text: String },
+    Hash {
+        /// Value to hash. Omit to read from stdin.
+        text: Option<String>,
+    },
     /// Decode JWT token
-    Jwt { token: String },
+    Jwt { token: Option<String> },
     /// Text Statistics
-    Stats { text: String },
+    Stats {
+        /// Value to analyze. Omit to read from stdin.
+        text: Option<String>,
+    },
+    /// Format or minify JSON
+    Json {
+        #[arg(short, long)]
+        minify: bool,
+        /// JSON to format. Omit to read from stdin.
+        text: Option<String>,
+    },
+    /// Convert text between common casings
+    Case {
+        /// lowercase, uppercase, title, camel, snake, kebab
+        #[arg(short, long, default_value = "lowercase")]
+        mode: String,
+        /// Text to convert. Omit to read from stdin.
+        text: Option<String>,
+    },
+    /// Validate and explain a standard five-field cron expression
+    Cron { expression: String },
+    /// Parse a URL into its constituent parts
+    UrlParser { url: String },
+    /// Convert between date/time formats
+    Datetime { value: Option<String> },
+    /// Generate Lorem Ipsum placeholder text
+    Lorem {
+        #[arg(short, long, default_value_t = 3)]
+        paragraphs: usize,
+    },
+    /// Test a Rust regular expression against text
+    Regex {
+        /// Regular expression pattern
+        pattern: String,
+        /// Text to test against. Omit to read from stdin.
+        text: Option<String>,
+    },
+    /// Convert a six-digit HEX color to RGB and HSL
+    Color { hex: String },
     /// Calculate IPv4 subnet details from CIDR notation
     Ipv4 { cidr: String },
     /// Generate locally administered unicast MAC addresses
@@ -53,14 +109,21 @@ pub enum Commands {
         count: usize,
     },
     /// Convert YAML to pretty JSON
-    Yaml2json { text: String },
+    Yaml2json { text: Option<String> },
     /// Convert JSON to YAML
-    Json2yaml { text: String },
+    Json2yaml { text: Option<String> },
     /// Convert an integer from binary, octal, decimal, or hexadecimal
     NumberBase {
         #[arg(short, long)]
         from: String,
-        value: String,
+        value: Option<String>,
+    },
+    /// Generate secure random passwords
+    Password {
+        #[arg(short, long, default_value_t = 1)]
+        count: usize,
+        #[arg(short, long, default_value_t = 16)]
+        length: usize,
     },
 }
 
@@ -68,18 +131,23 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
     match cmd {
         Commands::Uuid { count } => {
             for _ in 0..count {
-                println!("{}", Uuid::new_v4());
+                println!("{}", uuid::Uuid::new_v4());
             }
         }
         Commands::Base64 { decode, text } => {
+            let text = arg_or_stdin(text)?;
             if decode {
-                let bytes = STANDARD.decode(text)?;
-                println!("{}", String::from_utf8_lossy(&bytes));
+                println!(
+                    "{}",
+                    crate::tools::base64_encoder::decode_base64(&text)
+                        .map_err(anyhow::Error::msg)?
+                );
             } else {
-                println!("{}", STANDARD.encode(text));
+                println!("{}", crate::tools::base64_encoder::encode_base64(&text));
             }
         }
         Commands::Urlencode { decode, text } => {
+            let text = arg_or_stdin(text)?;
             if decode {
                 println!("{}", urlencoding::decode(&text)?);
             } else {
@@ -87,6 +155,7 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
             }
         }
         Commands::HtmlEntities { decode, text } => {
+            let text = arg_or_stdin(text)?;
             if decode {
                 println!("{}", html_escape::decode_html_entities(&text));
             } else {
@@ -94,34 +163,91 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
             }
         }
         Commands::Hash { text } => {
-            println!("MD5: {:x}", md5::compute(text.as_bytes()));
-            println!("SHA256: {:x}", Sha256::digest(text.as_bytes()));
-            println!("SHA512: {:x}", Sha512::digest(text.as_bytes()));
+            let text = arg_or_stdin(text)?;
+            let (md5_out, sha256_out, sha512_out) = crate::tools::hash_generator::hash_text(&text);
+            println!("MD5: {md5_out}");
+            println!("SHA256: {sha256_out}");
+            println!("SHA512: {sha512_out}");
         }
         Commands::Jwt { token } => {
-            let parts: Vec<&str> = token.split('.').collect();
-            if !parts.is_empty() {
-                if let Ok(h) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[0]) {
-                    println!("Header:\n{}", String::from_utf8_lossy(&h));
-                }
+            let token = arg_or_stdin(token)?;
+            let (header, payload, signature) = crate::tools::jwt_parser::decode_jwt(&token);
+            if !header.is_empty() {
+                println!("Header:\n{header}");
             }
-            if parts.len() > 1 {
-                if let Ok(p) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[1]) {
-                    println!("Payload:\n{}", String::from_utf8_lossy(&p));
-                }
+            if !payload.is_empty() {
+                println!("Payload:\n{payload}");
             }
-            if parts.len() > 2 {
-                println!("Signature:\n{}", parts[2]);
+            if !signature.is_empty() {
+                println!("Signature:\n{signature}");
             }
         }
         Commands::Stats { text } => {
-            let chars = text.chars().count();
-            let words = text.split_whitespace().count();
-            let bytes = text.len();
-            let lines = text.lines().count();
+            let text = arg_or_stdin(text)?;
+            let (chars, chars_no_spaces, words, lines, bytes) =
+                crate::tools::text_stats::analyze(&text);
+            println!("Characters (total): {chars}");
+            println!("Characters (no spaces): {chars_no_spaces}");
+            println!("Words: {words}");
+            println!("Lines: {lines}");
+            println!("Bytes: {bytes}");
+        }
+        Commands::Json { minify, text } => {
+            let text = arg_or_stdin(text)?;
+            let pretty = !minify;
             println!(
-                "Chars: {}\nWords: {}\nLines: {}\nBytes: {}",
-                chars, words, lines, bytes
+                "{}",
+                crate::tools::json_formatter::format_json(&text, pretty)
+                    .map_err(anyhow::Error::msg)?
+            );
+        }
+        Commands::Case { mode, text } => {
+            let text = arg_or_stdin(text)?;
+            let converted = crate::tools::text_case_converter::convert_case(&text, &mode)
+                .map_err(anyhow::Error::msg)?;
+            println!("{converted}");
+        }
+        Commands::Cron { expression } => {
+            println!(
+                "{}",
+                crate::tools::cron_parser::parse_cron(&expression).map_err(anyhow::Error::msg)?
+            );
+        }
+        Commands::UrlParser { url } => {
+            let parts = crate::tools::url_parser::parse_url(&url).map_err(anyhow::Error::msg)?;
+            println!("Scheme:   {}", parts.scheme);
+            println!("Host:     {}", parts.host);
+            println!("Port:     {}", parts.port);
+            println!("Path:     {}", parts.path);
+            println!("Query:    {}", parts.query);
+            println!("Fragment: {}", parts.fragment);
+        }
+        Commands::Datetime { value } => {
+            let value = arg_or_stdin(value)?;
+            let conversions =
+                crate::tools::datetime::convert_datetime(&value).map_err(anyhow::Error::msg)?;
+            for (name, val) in conversions {
+                println!("{name:22} {val}");
+            }
+        }
+        Commands::Lorem { paragraphs } => {
+            println!(
+                "{}",
+                crate::tools::lorem_ipsum::generate(paragraphs.clamp(1, 50))
+            );
+        }
+        Commands::Regex { pattern, text } => {
+            let text = arg_or_stdin(text)?;
+            println!(
+                "{}",
+                crate::tools::regex_tester::test_regex(&pattern, &text)
+                    .map_err(anyhow::Error::msg)?
+            );
+        }
+        Commands::Color { hex } => {
+            println!(
+                "{}",
+                crate::tools::color_converter::convert_color(&hex).map_err(anyhow::Error::msg)?
             );
         }
         Commands::Ipv4 { cidr } => {
@@ -139,15 +265,24 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
                 println!("{}", crate::tools::mac_generator::generate_mac(&mut rng));
             }
         }
-        Commands::Yaml2json { text } => println!(
-            "{}",
-            crate::tools::json_yaml_converter::yaml_to_json(&text).map_err(anyhow::Error::msg)?
-        ),
-        Commands::Json2yaml { text } => println!(
-            "{}",
-            crate::tools::json_yaml_converter::json_to_yaml(&text).map_err(anyhow::Error::msg)?
-        ),
+        Commands::Yaml2json { text } => {
+            let text = arg_or_stdin(text)?;
+            println!(
+                "{}",
+                crate::tools::json_yaml_converter::yaml_to_json(&text)
+                    .map_err(anyhow::Error::msg)?
+            )
+        }
+        Commands::Json2yaml { text } => {
+            let text = arg_or_stdin(text)?;
+            println!(
+                "{}",
+                crate::tools::json_yaml_converter::json_to_yaml(&text)
+                    .map_err(anyhow::Error::msg)?
+            )
+        }
         Commands::NumberBase { from, value } => {
+            let value = arg_or_stdin(value)?;
             let base = match from.to_ascii_lowercase().as_str() {
                 "2" | "bin" | "binary" => 2,
                 "8" | "oct" | "octal" => 8,
@@ -160,6 +295,17 @@ pub fn handle_cli(cmd: Commands) -> anyhow::Result<()> {
                 crate::tools::number_base_converter::convert_number(&value, base)
                     .map_err(anyhow::Error::msg)?
             );
+        }
+        Commands::Password { count, length } => {
+            let mut rng = rand::thread_rng();
+            let passwords = crate::tools::password_generator::generate_passwords(
+                &mut rng,
+                count.clamp(1, 50),
+                length.clamp(4, 128),
+            );
+            for pwd in passwords {
+                println!("{pwd}");
+            }
         }
     }
     Ok(())

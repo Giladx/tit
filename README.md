@@ -108,25 +108,46 @@ Tool-specific shortcuts appear in the contextual help panel. Terminals narrower 
 
 ## Headless CLI
 
-Use subcommands when output needs to be piped or consumed by another program:
+Use subcommands when output needs to be piped or consumed by another program. Most text-processing commands read from stdin when the value argument is omitted, making them easy to use in pipelines and scripts.
 
 ```bash
+# Generators and parsing
 tit uuid --count 3
+tit mac --count 3
+tit password --count 3 --length 20
+tit lorem --paragraphs 3
+
+# Encoders, hashes, and JWT
 tit base64 "hello world"
 tit base64 --decode "aGVsbG8gd29ybGQ="
 tit urlencode "hello world"
 tit html-entities '<main class="app">'
 tit hash "important input"
 tit jwt "header.payload.signature"
-tit stats "A short sentence."
-tit ipv4 "192.168.1.10/24"
-tit mac --count 3
+
+# JSON, YAML, and text tools
+tit json '{"a":1}'
+tit json --minify '{"a":1}'
 tit yaml2json 'name: tit'
 tit json2yaml '{"name":"tit"}'
+tit stats "A short sentence."
+tit case --mode camel "hello world"
+
+# Network and development utilities
+tit ipv4 "192.168.1.10/24"
+tit url-parser "https://example.com/path?q=1"
+tit regex '\d+' 'abc123'
+tit cron '*/5 9-17 * * 1-5'
+tit datetime '2024-01-01T00:00:00Z'
 tit number-base --from hex FF
+
+# Pipe input for script-friendly use
+printf 'hello world' | tit base64
+printf '{"a":1}' | tit json
+cat file.json | tit json --minify
 ```
 
-Discover all commands with `tit --help` or `tit <command> --help`.
+Discover all commands with `tit --help` or `tit <command> --help`. Most text-processing subcommands read from stdin when the value argument is omitted.
 
 ## Architecture
 

@@ -15,6 +15,23 @@ pub struct PasswordGenerator {
     count: usize,
 }
 
+const PASSWORD_CHARS: &[u8] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{}|;:,.<>?";
+
+pub fn generate_passwords<R: Rng>(rng: &mut R, count: usize, length: usize) -> Vec<String> {
+    let mut passwords = Vec::with_capacity(count);
+    for _ in 0..count {
+        let pwd: String = (0..length)
+            .map(|_| {
+                let idx = rng.gen_range(0..PASSWORD_CHARS.len());
+                PASSWORD_CHARS[idx] as char
+            })
+            .collect();
+        passwords.push(pwd);
+    }
+    passwords
+}
+
 impl PasswordGenerator {
     pub fn new() -> Self {
         let mut t = Self {
@@ -27,21 +44,8 @@ impl PasswordGenerator {
     }
 
     fn generate(&mut self) {
-        self.passwords.clear();
         let mut rng = rand::thread_rng();
-
-        // Allowed characters (mixing uppercase, lowercase, numbers, symbols)
-        let chars = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{}|;:,.<>?";
-
-        for _ in 0..self.count {
-            let pwd: String = (0..self.length)
-                .map(|_| {
-                    let idx = rng.gen_range(0..chars.len());
-                    chars[idx] as char
-                })
-                .collect();
-            self.passwords.push(pwd);
-        }
+        self.passwords = generate_passwords(&mut rng, self.count, self.length);
     }
 }
 

@@ -151,6 +151,33 @@ pub struct DateTimeConverter {
     is_valid: bool,
     status: String,
 }
+pub fn convert_datetime(value: &str) -> Result<Vec<(&'static str, String)>, String> {
+    let text = value.trim();
+
+    // Auto-detect input format if non-empty
+    let mut selected_format = DateFormat::Iso8601;
+    if !text.is_empty() {
+        if let Some((idx, _)) = DateFormat::ALL
+            .iter()
+            .enumerate()
+            .find(|(_, f)| f.matches(text))
+        {
+            selected_format = DateFormat::ALL[idx];
+        }
+    }
+
+    match selected_format.parse(text) {
+        Some(dt) => Ok(DateFormat::ALL
+            .iter()
+            .map(|f| (f.name(), f.format(dt)))
+            .collect()),
+        None => Err(format!(
+            "Invalid date for format: {}",
+            selected_format.name()
+        )),
+    }
+}
+
 impl DateTimeConverter {
     pub fn new() -> Self {
         let mut input = TextArea::default();

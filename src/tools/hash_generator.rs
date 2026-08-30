@@ -17,6 +17,16 @@ pub struct HashGenerator<'a> {
     sha512_out: String,
 }
 
+pub fn hash_text(text: &str) -> (String, String, String) {
+    if text.is_empty() {
+        return (String::new(), String::new(), String::new());
+    }
+    let md5_out = format!("{:x}", md5::compute(text.as_bytes()));
+    let sha256_out = format!("{:x}", Sha256::digest(text.as_bytes()));
+    let sha512_out = format!("{:x}", Sha512::digest(text.as_bytes()));
+    (md5_out, sha256_out, sha512_out)
+}
+
 impl<'a> HashGenerator<'a> {
     pub fn new() -> Self {
         let mut input = TextArea::default();
@@ -35,16 +45,7 @@ impl<'a> HashGenerator<'a> {
 
     fn process(&mut self) {
         let text = self.input.lines().join("\n");
-        if text.is_empty() {
-            self.md5_out.clear();
-            self.sha256_out.clear();
-            self.sha512_out.clear();
-            return;
-        }
-
-        self.md5_out = format!("{:x}", md5::compute(text.as_bytes()));
-        self.sha256_out = format!("{:x}", Sha256::digest(text.as_bytes()));
-        self.sha512_out = format!("{:x}", Sha512::digest(text.as_bytes()));
+        (self.md5_out, self.sha256_out, self.sha512_out) = hash_text(&text);
     }
 }
 

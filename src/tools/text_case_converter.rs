@@ -49,49 +49,52 @@ impl<'a> TextCaseConverter<'a> {
         let text = self.input.lines().join("\n");
         let mode_idx = self.mode_list_state.selected().unwrap_or(0);
         let mode = self.modes[mode_idx];
+        self.output = convert_case(&text, mode).unwrap_or_default();
+    }
+}
 
-        self.output = match mode {
-            "Lowercase" => text.to_lowercase(),
-            "Uppercase" => text.to_uppercase(),
-            "Title Case" => text
-                .split_whitespace()
-                .map(|word| {
+pub fn convert_case(text: &str, mode: &str) -> Result<String, String> {
+    match mode.to_ascii_lowercase().as_str() {
+        "lowercase" => Ok(text.to_lowercase()),
+        "uppercase" => Ok(text.to_uppercase()),
+        "title" | "title case" => Ok(text
+            .split_whitespace()
+            .map(|word| {
+                let mut c = word.chars();
+                match c.next() {
+                    None => String::new(),
+                    Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")),
+        "camel" | "camel case" => Ok(text
+            .split_whitespace()
+            .enumerate()
+            .map(|(i, word)| {
+                let word = word.to_lowercase();
+                if i == 0 {
+                    word
+                } else {
                     let mut c = word.chars();
                     match c.next() {
                         None => String::new(),
                         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
                     }
-                })
-                .collect::<Vec<_>>()
-                .join(" "),
-            "Camel Case" => text
-                .split_whitespace()
-                .enumerate()
-                .map(|(i, word)| {
-                    let word = word.to_lowercase();
-                    if i == 0 {
-                        word
-                    } else {
-                        let mut c = word.chars();
-                        match c.next() {
-                            None => String::new(),
-                            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-                        }
-                    }
-                })
-                .collect::<String>(),
-            "Snake Case" => text
-                .to_lowercase()
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join("_"),
-            "Kebab Case" => text
-                .to_lowercase()
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join("-"),
-            _ => text,
-        };
+                }
+            })
+            .collect::<String>()),
+        "snake" | "snake case" => Ok(text
+            .to_lowercase()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join("_")),
+        "kebab" | "kebab case" => Ok(text
+            .to_lowercase()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join("-")),
+        _ => Err(format!("Unknown case mode: {mode}")),
     }
 }
 
