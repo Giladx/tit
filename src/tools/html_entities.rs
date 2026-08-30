@@ -151,3 +151,39 @@ impl<'a> Tool for HtmlEntities<'a> {
         vec!["Tab: encode/decode", "Ctrl+C: copy output"]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encodes_special_chars() {
+        let mut tool = HtmlEntities::new();
+        tool.input.insert_str("<main class=\"app\">");
+        tool.process();
+        assert_eq!(tool.output, "&lt;main class=\"app\"&gt;");
+    }
+
+    #[test]
+    fn decodes_entities() {
+        let mut tool = HtmlEntities::new();
+        tool.mode = Mode::Decode;
+        tool.input.insert_str("&lt;div&gt;Hello&lt;/div&gt;");
+        tool.process();
+        assert_eq!(tool.output, "<div>Hello</div>");
+    }
+
+    #[test]
+    fn round_trip() {
+        let original = "<tag attr=\"value\">";
+        let mut enc = HtmlEntities::new();
+        enc.input.insert_str(original);
+        enc.process();
+
+        let mut dec = HtmlEntities::new();
+        dec.mode = Mode::Decode;
+        dec.input.insert_str(&enc.output);
+        dec.process();
+        assert_eq!(dec.output, original);
+    }
+}

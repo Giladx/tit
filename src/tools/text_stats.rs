@@ -136,3 +136,46 @@ impl<'a> Tool for TextStats<'a> {
         vec!["Type or paste text", "Counts Unicode characters and bytes"]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn counts_simple_sentence() {
+        let (chars, chars_no_spaces, words, lines, bytes) = analyze("A short sentence.");
+        assert_eq!(chars, 17);
+        assert_eq!(chars_no_spaces, 15);
+        assert_eq!(words, 3);
+        assert_eq!(lines, 1);
+        assert_eq!(bytes, 17);
+    }
+
+    #[test]
+    fn empty_text_has_zero_counts() {
+        let (chars, chars_no_spaces, words, lines, bytes) = analyze("");
+        assert_eq!(chars, 0);
+        assert_eq!(chars_no_spaces, 0);
+        assert_eq!(words, 0);
+        assert_eq!(lines, 0);
+        assert_eq!(bytes, 0);
+    }
+
+    #[test]
+    fn counts_multiline_text() {
+        let text = "first line\nsecond line\nthird line";
+        let (_, _, words, lines, _) = analyze(text);
+        assert_eq!(words, 6);
+        assert_eq!(lines, 3);
+    }
+
+    #[test]
+    fn counts_unicode_characters() {
+        let text = "שלום 🌍";
+        let (chars, _, words, lines, bytes) = analyze(text);
+        assert_eq!(chars, 6);
+        assert_eq!(words, 2);
+        assert_eq!(lines, 1);
+        assert!(bytes > chars);
+    }
+}

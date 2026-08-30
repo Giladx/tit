@@ -116,3 +116,37 @@ impl Tool for UuidGenerator {
         vec!["Enter: regenerate", "+/-: change count", "Ctrl+C: copy all"]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generates_valid_uuid_v4() {
+        let mut tool = UuidGenerator::new();
+        tool.count = 1;
+        tool.generate();
+        let uuid = tool.uuids.first().unwrap();
+        assert_eq!(uuid.len(), 36);
+        assert_eq!(uuid.chars().nth(14).unwrap(), '4');
+        assert!(uuid.chars().nth(19).unwrap().is_ascii_hexdigit());
+    }
+
+    #[test]
+    fn generates_requested_count() {
+        let mut tool = UuidGenerator::new();
+        tool.count = 7;
+        tool.generate();
+        assert_eq!(tool.uuids.len(), 7);
+        assert!(tool.uuids.iter().all(|u| u.parse::<Uuid>().is_ok()));
+    }
+
+    #[test]
+    fn generated_uuids_are_unique() {
+        let mut tool = UuidGenerator::new();
+        tool.count = 20;
+        tool.generate();
+        let unique: std::collections::HashSet<_> = tool.uuids.iter().collect();
+        assert_eq!(unique.len(), tool.uuids.len());
+    }
+}

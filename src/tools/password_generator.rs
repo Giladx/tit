@@ -141,3 +141,30 @@ impl Tool for PasswordGenerator {
         ]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::thread_rng;
+
+    #[test]
+    fn generates_requested_count_and_length() {
+        let passwords = generate_passwords(&mut thread_rng(), 3, 12);
+        assert_eq!(passwords.len(), 3);
+        assert!(passwords.iter().all(|p| p.len() == 12));
+    }
+
+    #[test]
+    fn passwords_are_not_empty() {
+        let passwords = generate_passwords(&mut thread_rng(), 5, 8);
+        assert!(passwords.iter().all(|p| !p.is_empty()));
+    }
+
+    #[test]
+    fn passwords_differ_usually() {
+        let a = generate_passwords(&mut thread_rng(), 2, 16);
+        let b = generate_passwords(&mut thread_rng(), 2, 16);
+        // Extremely unlikely to match entirely
+        assert_ne!(a, b);
+    }
+}

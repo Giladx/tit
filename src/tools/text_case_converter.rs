@@ -224,3 +224,46 @@ impl<'a> Tool for TextCaseConverter<'a> {
         ]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn converts_to_lowercase() {
+        assert_eq!(
+            convert_case("HeLLo WoRLD", "lowercase").unwrap(),
+            "hello world"
+        );
+    }
+
+    #[test]
+    fn converts_to_uppercase() {
+        assert_eq!(convert_case("hello", "uppercase").unwrap(), "HELLO");
+    }
+
+    #[test]
+    fn converts_to_title_case() {
+        assert_eq!(convert_case("hello world", "title").unwrap(), "Hello World");
+    }
+
+    #[test]
+    fn converts_to_camel_case() {
+        assert_eq!(convert_case("hello world", "camel").unwrap(), "helloWorld");
+    }
+
+    #[test]
+    fn converts_to_snake_case() {
+        assert_eq!(convert_case("Hello World", "snake").unwrap(), "hello_world");
+    }
+
+    #[test]
+    fn converts_to_kebab_case() {
+        assert_eq!(convert_case("Hello World", "kebab").unwrap(), "hello-world");
+    }
+
+    #[test]
+    fn rejects_unknown_mode() {
+        assert!(convert_case("hello", "weird").is_err());
+    }
+}

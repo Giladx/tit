@@ -190,3 +190,36 @@ impl<'a> Tool for UrlParser<'a> {
         vec!["Type a complete URL", "Ctrl+C: copy parsed parts"]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_https_url() {
+        let parts = parse_url("https://example.com/path?q=1#top").unwrap();
+        assert_eq!(parts.scheme, "https");
+        assert_eq!(parts.host, "example.com");
+        assert_eq!(parts.path, "/path");
+        assert_eq!(parts.query, "q=1");
+        assert_eq!(parts.fragment, "top");
+    }
+
+    #[test]
+    fn parses_url_with_port() {
+        let parts = parse_url("http://localhost:8080/api").unwrap();
+        assert_eq!(parts.host, "localhost");
+        assert_eq!(parts.port, "8080");
+        assert_eq!(parts.path, "/api");
+    }
+
+    #[test]
+    fn rejects_invalid_url() {
+        assert!(parse_url("not a url").is_err());
+    }
+
+    #[test]
+    fn rejects_empty_url() {
+        assert!(parse_url("").is_err());
+    }
+}

@@ -113,3 +113,25 @@ impl Tool for LoremIpsum {
         vec!["+/-: paragraph count", "Ctrl+C: copy"]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generates_requested_paragraphs() {
+        let text = generate(3);
+        assert_eq!(text.split("\n\n").count(), 3);
+    }
+
+    #[test]
+    fn clamps_minimum_to_one() {
+        let text = generate(0);
+        assert_eq!(text.split("\n\n").count(), 1);
+    }
+
+    #[test]
+    fn starts_with_lorem_ipsum() {
+        assert!(generate(1).starts_with("Lorem ipsum dolor sit amet"));
+    }
+}

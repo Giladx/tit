@@ -161,7 +161,7 @@ src/
 └── ui/           # Shared UI module boundary
 ```
 
-Tools implement the shared `Tool` trait and are registered in `src/tools/mod.rs`. Parsing and conversion logic is kept separate from rendering so it can be tested without starting a terminal.
+Tools implement the shared `Tool` trait and are registered in `src/tools/mod.rs`. Parsing and conversion logic is kept separate from rendering so it can be tested without starting a terminal. Every tool module has unit tests covering its core conversion logic.
 
 ## Development
 
